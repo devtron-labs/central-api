@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
+	"sync"
 	"time"
 )
 
@@ -20,6 +21,7 @@ type ReleaseNoteServiceImpl struct {
 	logger       *zap.SugaredLogger
 	client       *util.GitHubClient
 	releaseCache *util.ReleaseCache
+	mutex        sync.Mutex
 }
 
 func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubClient, releaseCache *util.ReleaseCache) *ReleaseNoteServiceImpl {
@@ -87,6 +89,8 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 			}
 		}
 	}
+	impl.mutex.Lock()
+	defer impl.mutex.Unlock()
 	impl.releaseCache.UpdateReleaseCache(releaseList)
 	return true, nil
 }
@@ -135,6 +139,8 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 		}
 		result.Releases = releasesDto
 		releaseList = releasesDto
+		impl.mutex.Lock()
+		defer impl.mutex.Unlock()
 		impl.releaseCache.UpdateReleaseCache(releaseList)
 	}
 
