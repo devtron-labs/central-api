@@ -50,7 +50,7 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 	releaseName := releaseData["name"].(string)
 	tagName := releaseData["tag_name"].(string)
 	createdAtString := releaseData["created_at"].(string)
-	createdAt, error := time.Parse("2006-01-02T15:04", createdAtString)
+	createdAt, error := time.Parse("2006-01-02T15:04:05.000Z", createdAtString)
 	if error != nil {
 		impl.logger.Error(error)
 		//return false, nil
