@@ -9,7 +9,6 @@ import (
 	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 )
 
 type RestHandler interface {
@@ -74,15 +73,7 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 
 	// get git host Id and secret from request
 	vars := mux.Vars(r)
-	gitHostId, err := strconv.Atoi(vars["gitHostId"])
 	secretFromRequest := vars["secret"]
-	if err != nil {
-		impl.logger.Errorw("Error in getting git host Id from request", "err", err)
-		impl.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	impl.logger.Debug("gitHostId", gitHostId)
 	impl.logger.Debug("secretFromRequest", secretFromRequest)
 
 	// validate signature
