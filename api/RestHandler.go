@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 type RestHandler interface {
@@ -59,11 +60,31 @@ func (impl RestHandlerImpl) WriteJsonResp(w http.ResponseWriter, err error, resp
 
 func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Info("get releases ..")
+	offsetQueryParam := r.URL.Query().Get("offset")
+	offset, err := strconv.Atoi(offsetQueryParam)
+	if offsetQueryParam == "" || err != nil {
+		impl.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+		return
+	}
+	sizeQueryParam := r.URL.Query().Get("size")
+	limit, err := strconv.Atoi(sizeQueryParam)
+	if sizeQueryParam == "" || err != nil {
+		impl.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+		return
+	}
+
 	response, err := impl.releaseNoteService.GetReleases()
 	if err != nil {
 		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	if offset+limit <= len(response) {
+		response = response[offset : offset+limit]
+	} else {
+		response = response[offset:]
+	}
+
 	impl.WriteJsonResp(w, nil, response, http.StatusOK)
 	return
 }

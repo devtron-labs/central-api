@@ -22,7 +22,6 @@ func NewReleaseCache(logger *zap.SugaredLogger) *ReleaseCache {
 func (impl *ReleaseCache) GetReleaseCache() interface{} {
 	_, found := impl.cache.Get("releases")
 	if !found {
-		impl.logger.Error("no releases found")
 		impl.cache.Add("releases", nil, cache.NoExpiration)
 		return impl.cache.Items()
 	}

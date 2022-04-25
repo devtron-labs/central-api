@@ -23,11 +23,16 @@ type ReleaseNoteServiceImpl struct {
 }
 
 func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubClient, releaseCache *util.ReleaseCache) *ReleaseNoteServiceImpl {
-	return &ReleaseNoteServiceImpl{
+	serviceImpl := &ReleaseNoteServiceImpl{
 		logger:       logger,
 		client:       client,
 		releaseCache: releaseCache,
 	}
+	_, err := serviceImpl.GetReleases()
+	if err != nil {
+		serviceImpl.logger.Errorw("error on app init call for releases", "err", err)
+	}
+	return serviceImpl
 }
 
 func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (bool, error) {
@@ -100,7 +105,7 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 	//todo - get it from cache
 
 	if releaseList == nil {
-		releases, _, err := impl.client.GitHubClient.Repositories.ListReleases(context.Background(), impl.client.GitHubConfig.GitHubOrg, "release-notes", &github.ListOptions{})
+		releases, _, err := impl.client.GitHubClient.Repositories.ListReleases(context.Background(), impl.client.GitHubConfig.GitHubOrg, impl.client.GitHubConfig.GitHubRepo, &github.ListOptions{})
 		if err != nil {
 			responseErr, ok := err.(*github.ErrorResponse)
 			if !ok || responseErr.Response.StatusCode != 404 {
