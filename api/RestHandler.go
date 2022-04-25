@@ -59,8 +59,9 @@ func (impl RestHandlerImpl) WriteJsonResp(w http.ResponseWriter, err error, resp
 }
 
 func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request) {
-	impl.logger.Info("get releases ..")
-	var offset, limit int
+	impl.logger.Debug("get all releases")
+	offset := 0
+	size := 10
 	var err error
 	offsetQueryParam := r.URL.Query().Get("offset")
 	if len(offsetQueryParam) > 0 {
@@ -72,21 +73,22 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 	}
 	sizeQueryParam := r.URL.Query().Get("size")
 	if len(sizeQueryParam) > 0 {
-		limit, err = strconv.Atoi(sizeQueryParam)
+		size, err = strconv.Atoi(sizeQueryParam)
 		if err != nil {
 			impl.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
 			return
 		}
 	}
+	//will fetch all the releases from cache and later apply size and offset filter
 	response, err := impl.releaseNoteService.GetReleases()
 	if err != nil {
 		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	if limit > 0 && offset > 0 {
-		if offset+limit <= len(response) {
-			response = response[offset : offset+limit]
+	if size > 0 && offset > 0 {
+		if offset+size <= len(response) {
+			response = response[offset : offset+size]
 		} else {
 			response = response[offset:]
 		}
@@ -97,12 +99,11 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 }
 
 func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *http.Request) {
-	impl.logger.Info("release webhook handler ..")
-
+	impl.logger.Debug("release webhook handler received event")
 	// get git host Id and secret from request
 	vars := mux.Vars(r)
 	secretFromRequest := vars["secret"]
-	impl.logger.Debug("secretFromRequest", secretFromRequest)
+	impl.logger.Debugw("secret found in request", "secret", secretFromRequest)
 
 	// validate signature
 	requestBodyBytes, err := ioutil.ReadAll(r.Body)
@@ -113,7 +114,7 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 	}
 
 	isValidSig := impl.webhookSecretValidator.ValidateSecret(r, requestBodyBytes)
-	impl.logger.Debug("Secret validation result ", isValidSig)
+	impl.logger.Debugw("Secret validation result ", "isValidSig", isValidSig)
 	if !isValidSig {
 		impl.logger.Error("Signature mismatch")
 		impl.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
@@ -121,8 +122,8 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 	}
 	// validate event type
 	eventType := r.Header.Get(impl.client.GitHubConfig.GitHubEventTypeHeader)
-	impl.logger.Debugw("eventType : ", eventType)
-	if len(eventType) == 0 && eventType != "release" {
+	impl.logger.Debugw("webhook event type header", "eventType : ", eventType)
+	if len(eventType) == 0 && eventType != pkg.EventTypeRelease {
 		impl.logger.Errorw("Event type not known ", eventType)
 		impl.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

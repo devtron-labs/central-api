@@ -1,0 +1,126 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /api.devtron.ai/release/notes:
+    get:
+      description: this api will return all the releases and coresponding notes
+      parameters: [ ]
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReleaseNote'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api.devtron.ai/release/notes/release/webhook:
+    post:
+      description: this api will used for getting events/webhook from github.
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                payload:
+                  type: string
+                  description: json payload (this may be incorrect)
+      responses:
+        '200':
+          description: app labels edit response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: boolean
+                    description: status
+
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# components mentioned below
+components:
+  schemas:
+    ReleaseNote:
+      type: object
+      required:
+        - tagName
+        - releaseName
+        - createdAt
+        - body
+      properties:
+        tagName:
+          type: string
+          description: tag name
+        releaseName:
+          type: string
+          description: release name
+        body:
+          type: string
+          description: release note body
+        createdAt:
+          type: string
+          description: release created at
+
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message

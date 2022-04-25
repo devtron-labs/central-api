@@ -31,9 +31,13 @@ func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubCli
 	_, err := serviceImpl.GetReleases()
 	if err != nil {
 		serviceImpl.logger.Errorw("error on app init call for releases", "err", err)
+		//ignore error for starting application
 	}
 	return serviceImpl
 }
+
+const ActionPublished = "published"
+const EventTypeRelease = "release"
 
 func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (bool, error) {
 	data := make(map[string]interface{})
@@ -43,7 +47,7 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 		return false, err
 	}
 	action := data["action"].(string)
-	if action != "published" {
+	if action != ActionPublished {
 		return false, nil
 	}
 	releaseData := data["release"].(map[string]interface{})
@@ -65,11 +69,14 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 
 	//updating cache, fetch existing object and append new item
 	var releaseList []*common.Release
+	releaseList = append(releaseList, releaseInfo)
 	cachedReleases := impl.releaseCache.GetReleaseCache()
 	if cachedReleases != nil {
 		itemMap, ok := cachedReleases.(map[string]cache.Item)
 		if !ok {
 			// Can't assert, handle error.
+			impl.logger.Error("Can't assert, handle err")
+			return false, nil
 		}
 		impl.logger.Info(itemMap)
 		if itemMap != nil {
@@ -80,7 +87,6 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 			}
 		}
 	}
-	releaseList = append(releaseList, releaseInfo)
 	impl.releaseCache.UpdateReleaseCache(releaseList)
 	return true, nil
 }
@@ -91,7 +97,8 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 	if cachedReleases != nil {
 		itemMap, ok := cachedReleases.(map[string]cache.Item)
 		if !ok {
-			// Can't assert, handle error.
+			impl.logger.Error("Can't assert, handle err")
+			return releaseList, nil
 		}
 		impl.logger.Info(itemMap)
 		if itemMap != nil {
@@ -102,7 +109,6 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			}
 		}
 	}
-	//todo - get it from cache
 
 	if releaseList == nil {
 		releases, _, err := impl.client.GitHubClient.Repositories.ListReleases(context.Background(), impl.client.GitHubConfig.GitHubOrg, impl.client.GitHubConfig.GitHubRepo, &github.ListOptions{})
@@ -127,7 +133,6 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			}
 			releasesDto = append(releasesDto, dto)
 		}
-		//todo pagination
 		result.Releases = releasesDto
 		releaseList = releasesDto
 		impl.releaseCache.UpdateReleaseCache(releaseList)
