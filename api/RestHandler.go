@@ -99,7 +99,7 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if size > 0 && offset > 0 {
+	if size > 0 {
 		if offset+size <= len(response) {
 			response = response[offset : offset+size]
 		} else {

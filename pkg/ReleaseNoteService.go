@@ -3,6 +3,7 @@ package pkg
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	util "github.com/devtron-labs/central-api/client"
 	"github.com/devtron-labs/central-api/common"
 	"github.com/google/go-github/github"
@@ -115,33 +116,46 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 	}
 
 	if releaseList == nil {
-		releases, _, err := impl.client.GitHubClient.Repositories.ListReleases(context.Background(), impl.client.GitHubConfig.GitHubOrg, impl.client.GitHubConfig.GitHubRepo, &github.ListOptions{})
-		if err != nil {
-			responseErr, ok := err.(*github.ErrorResponse)
-			if !ok || responseErr.Response.StatusCode != 404 {
-				impl.logger.Errorw("error in fetching releases from github", "err", err, "config", "config")
-				return nil, err
-			} else {
-				//newFile = true
+		operationComplete := false
+		retryCount := 0
+		for !operationComplete && retryCount < 3 {
+			retryCount = retryCount + 1
+			releases, _, err := impl.client.GitHubClient.Repositories.ListReleases(context.Background(), impl.client.GitHubConfig.GitHubOrg, impl.client.GitHubConfig.GitHubRepo, &github.ListOptions{})
+			if err != nil {
+				responseErr, ok := err.(*github.ErrorResponse)
+				if !ok || responseErr.Response.StatusCode != 404 {
+					impl.logger.Errorw("error in fetching releases from github", "err", err, "config", "config")
+					//todo - any specific message
+					continue
+				} else {
+					impl.logger.Errorw("error in fetching releases from github", "err", err)
+					continue
+				}
 			}
-		}
-		result := &common.ReleaseList{}
-		var releasesDto []*common.Release
-		for _, item := range releases {
-			dto := &common.Release{
-				TagName:     *item.TagName,
-				ReleaseName: *item.Name,
-				CreatedAt:   item.CreatedAt.Time,
-				PublishedAt: item.PublishedAt.Time,
-				Body:        *item.Body,
+			if err == nil {
+				operationComplete = true
 			}
-			releasesDto = append(releasesDto, dto)
+			result := &common.ReleaseList{}
+			var releasesDto []*common.Release
+			for _, item := range releases {
+				dto := &common.Release{
+					TagName:     *item.TagName,
+					ReleaseName: *item.Name,
+					CreatedAt:   item.CreatedAt.Time,
+					PublishedAt: item.PublishedAt.Time,
+					Body:        *item.Body,
+				}
+				releasesDto = append(releasesDto, dto)
+			}
+			result.Releases = releasesDto
+			releaseList = releasesDto
+			impl.mutex.Lock()
+			defer impl.mutex.Unlock()
+			impl.releaseCache.UpdateReleaseCache(releaseList)
 		}
-		result.Releases = releasesDto
-		releaseList = releasesDto
-		impl.mutex.Lock()
-		defer impl.mutex.Unlock()
-		impl.releaseCache.UpdateReleaseCache(releaseList)
+		if !operationComplete {
+			return releaseList, fmt.Errorf("failed operation on fetching releases from github, attempted 3 times")
+		}
 	}
 
 	return releaseList, nil
