@@ -15,6 +15,7 @@ import (
 type RestHandler interface {
 	GetReleases(w http.ResponseWriter, r *http.Request)
 	ReleaseWebhookHandler(w http.ResponseWriter, r *http.Request)
+	GetModules(w http.ResponseWriter, r *http.Request)
 }
 
 func NewRestHandlerImpl(logger *zap.SugaredLogger, releaseNoteService pkg.ReleaseNoteService,
@@ -56,6 +57,18 @@ func (impl RestHandlerImpl) WriteJsonResp(w http.ResponseWriter, err error, resp
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	w.Write(b)
+}
+
+func (impl *RestHandlerImpl) GetModules(w http.ResponseWriter, r *http.Request) {
+	impl.logger.Debug("get all modules")
+	//todo - enhance this list in incremental releases
+	var modules []*common.Module
+	modules = append(modules, &common.Module{
+		Id:   1,
+		Name: common.MODULE_CICD,
+	})
+	impl.WriteJsonResp(w, nil, modules, http.StatusOK)
+	return
 }
 
 func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request) {

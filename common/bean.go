@@ -27,3 +27,10 @@ type Release struct {
 	PublishedAt time.Time `json:"publishedAt"`
 	Body        string    `json:"body"`
 }
+
+const MODULE_CICD = "CICD"
+
+type Module struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}

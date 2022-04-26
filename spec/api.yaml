@@ -67,6 +67,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api.devtron.ai/modules:
+    get:
+      description: this api will return all the modules
+      parameters: [ ]
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Module'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 # components mentioned below
 components:
   schemas:
@@ -90,6 +118,18 @@ components:
         createdAt:
           type: string
           description: release created at
+    Module:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          description: module id
+        name:
+          type: string
+          description: module name
 
     ErrorResponse:
       required:
