@@ -35,6 +35,13 @@ type RestHandlerImpl struct {
 	client                 *util.GitHubClient
 }
 
+func setupResponse(w *http.ResponseWriter, req *http.Request) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	(*w).Header().Set("Content-Type", "text/html; charset=utf-8")
+}
+
 func (impl RestHandlerImpl) WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, status int) {
 	response := common.Response{}
 	response.Code = status
@@ -61,6 +68,7 @@ func (impl RestHandlerImpl) WriteJsonResp(w http.ResponseWriter, err error, resp
 
 func (impl *RestHandlerImpl) GetModules(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Debug("get all modules")
+	setupResponse(&w, r)
 	//todo - enhance this list in incremental releases
 	var modules []*common.Module
 	modules = append(modules, &common.Module{
@@ -72,6 +80,7 @@ func (impl *RestHandlerImpl) GetModules(w http.ResponseWriter, r *http.Request) 
 }
 
 func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request) {
+	setupResponse(&w, r)
 	impl.logger.Debug("get all releases")
 	offset := 0
 	size := 10
