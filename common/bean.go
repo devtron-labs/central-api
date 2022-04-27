@@ -28,7 +28,7 @@ type Release struct {
 	Body        string    `json:"body"`
 }
 
-const MODULE_CICD = "CICD"
+const MODULE_CICD = "cicd"
 
 type Module struct {
 	Id   int    `json:"id"`
