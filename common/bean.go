@@ -31,6 +31,7 @@ type Release struct {
 const MODULE_CICD = "cicd"
 
 type Module struct {
-	Id   int    `json:"id"`
-	Name string `json:"name"`
+	Id                      int    `json:"id"`
+	Name                    string `json:"name"`
+	BaseMinVersionSupported string `json:"baseMinVersionSupported"`
 }

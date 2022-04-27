@@ -72,8 +72,9 @@ func (impl *RestHandlerImpl) GetModules(w http.ResponseWriter, r *http.Request) 
 	//todo - enhance this list in incremental releases
 	var modules []*common.Module
 	modules = append(modules, &common.Module{
-		Id:   1,
-		Name: common.MODULE_CICD,
+		Id:                      1,
+		Name:                    common.MODULE_CICD,
+		BaseMinVersionSupported: "v0.0.1",
 	})
 	impl.WriteJsonResp(w, nil, modules, http.StatusOK)
 	return
