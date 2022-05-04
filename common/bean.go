@@ -29,6 +29,7 @@ type Release struct {
 }
 
 const MODULE_CICD = "cicd"
+const MODULE_Security = "security"
 
 type Module struct {
 	Id                            int      `json:"id"`
