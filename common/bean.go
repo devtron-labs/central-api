@@ -38,4 +38,6 @@ type Module struct {
 	Assets                        []string `json:"assets"`
 	Description                   string   `json:"description"`
 	Title                         string   `json:"title"`
+	Icon                          string   `json:"icon"`
+	Info                          string   `json:"info"`
 }
