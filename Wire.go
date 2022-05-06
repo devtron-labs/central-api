@@ -24,7 +24,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pkg.ReleaseNoteService), new(*pkg.ReleaseNoteServiceImpl)),
 		pkg.NewWebhookSecretValidatorImpl,
 		wire.Bind(new(pkg.WebhookSecretValidator), new(*pkg.WebhookSecretValidatorImpl)),
-
+		util.NewModuleConfig,
 	)
 	return &App{}, nil
 }
