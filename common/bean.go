@@ -29,9 +29,16 @@ type Release struct {
 }
 
 const MODULE_CICD = "cicd"
+const MODULE_Security = "security"
 
 type Module struct {
-	Id                      int    `json:"id"`
-	Name                    string `json:"name"`
-	BaseMinVersionSupported string `json:"baseMinVersionSupported"`
+	Id                            int      `json:"id"`
+	Name                          string   `json:"name"`
+	BaseMinVersionSupported       string   `json:"baseMinVersionSupported"`
+	IsIncludedInLegacyFullPackage bool     `json:"isIncludedInLegacyFullPackage"`
+	Assets                        []string `json:"assets"`
+	Description                   string   `json:"description"`
+	Title                         string   `json:"title"`
+	Icon                          string   `json:"icon"`
+	Info                          string   `json:"info"`
 }

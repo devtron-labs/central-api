@@ -69,13 +69,11 @@ func (impl RestHandlerImpl) WriteJsonResp(w http.ResponseWriter, err error, resp
 func (impl *RestHandlerImpl) GetModules(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Debug("get all modules")
 	setupResponse(&w, r)
-	//todo - enhance this list in incremental releases
-	var modules []*common.Module
-	modules = append(modules, &common.Module{
-		Id:                      1,
-		Name:                    common.MODULE_CICD,
-		BaseMinVersionSupported: "v0.0.1",
-	})
+	modules, err := impl.releaseNoteService.GetModules()
+	if err != nil {
+		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	impl.WriteJsonResp(w, nil, modules, http.StatusOK)
 	return
 }

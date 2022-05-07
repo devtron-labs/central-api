@@ -21,7 +21,11 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	releaseCache := util.NewReleaseCache(sugaredLogger)
-	releaseNoteServiceImpl := pkg.NewReleaseNoteServiceImpl(sugaredLogger, gitHubClient, releaseCache)
+	moduleConfig, err := util.NewModuleConfig(sugaredLogger)
+	if err != nil {
+		return nil, err
+	}
+	releaseNoteServiceImpl := pkg.NewReleaseNoteServiceImpl(sugaredLogger, gitHubClient, releaseCache, moduleConfig)
 	webhookSecretValidatorImpl := pkg.NewWebhookSecretValidatorImpl(sugaredLogger, gitHubClient)
 	restHandlerImpl := api.NewRestHandlerImpl(sugaredLogger, releaseNoteServiceImpl, webhookSecretValidatorImpl, gitHubClient)
 	muxRouter := api.NewMuxRouter(sugaredLogger, restHandlerImpl)

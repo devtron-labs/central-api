@@ -14,6 +14,7 @@ import (
 )
 
 type ReleaseNoteService interface {
+	GetModules() ([]*common.Module, error)
 	GetReleases() ([]*common.Release, error)
 	UpdateReleases(requestBodyBytes []byte) (bool, error)
 }
@@ -23,13 +24,16 @@ type ReleaseNoteServiceImpl struct {
 	client       *util.GitHubClient
 	releaseCache *util.ReleaseCache
 	mutex        sync.Mutex
+	moduleConfig *util.ModuleConfig
 }
 
-func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubClient, releaseCache *util.ReleaseCache) *ReleaseNoteServiceImpl {
+func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubClient, releaseCache *util.ReleaseCache,
+	moduleConfig *util.ModuleConfig) *ReleaseNoteServiceImpl {
 	serviceImpl := &ReleaseNoteServiceImpl{
 		logger:       logger,
 		client:       client,
 		releaseCache: releaseCache,
+		moduleConfig: moduleConfig,
 	}
 	_, err := serviceImpl.GetReleases()
 	if err != nil {
@@ -159,4 +163,20 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 	}
 
 	return releaseList, nil
+}
+
+func (impl *ReleaseNoteServiceImpl) GetModules() ([]*common.Module, error) {
+	var modules []*common.Module
+	modules = append(modules, &common.Module{
+		Id:                            1,
+		Name:                          impl.moduleConfig.ModuleConfig.Name,
+		BaseMinVersionSupported:       impl.moduleConfig.ModuleConfig.BaseMinVersionSupported,
+		IsIncludedInLegacyFullPackage: true,
+		Description:                   impl.moduleConfig.ModuleConfig.Description,
+		Title:                         impl.moduleConfig.ModuleConfig.Title,
+		Icon:                          impl.moduleConfig.ModuleConfig.Icon,
+		Info:                          impl.moduleConfig.ModuleConfig.Info,
+		Assets:                        impl.moduleConfig.ModuleConfig.Assets,
+	})
+	return modules, nil
 }
