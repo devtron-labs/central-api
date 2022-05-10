@@ -45,6 +45,7 @@ func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubCli
 
 const ActionPublished = "published"
 const EventTypeRelease = "release"
+const TimeFormatLayout = "2006-01-02T15:04:05Z"
 
 func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (bool, error) {
 	data := make(map[string]interface{})
@@ -61,9 +62,15 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 	releaseName := releaseData["name"].(string)
 	tagName := releaseData["tag_name"].(string)
 	createdAtString := releaseData["created_at"].(string)
-	createdAt, error := time.Parse("2006-01-02T15:04:05.000Z", createdAtString)
+	createdAt, error := time.Parse(TimeFormatLayout, createdAtString)
 	if error != nil {
-		impl.logger.Error(error)
+		impl.logger.Errorw("error on time parsing, ignored this key", "err", error)
+		//return false, nil
+	}
+	publishedAtString := releaseData["published_at"].(string)
+	publishedAt, error := time.Parse(TimeFormatLayout, publishedAtString)
+	if error != nil {
+		impl.logger.Errorw("error on time parsing, ignored this key", "err", error)
 		//return false, nil
 	}
 	body := releaseData["body"].(string)
@@ -72,6 +79,7 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 		ReleaseName: releaseName,
 		Body:        body,
 		CreatedAt:   createdAt,
+		PublishedAt: publishedAt,
 	}
 
 	//updating cache, fetch existing object and append new item
