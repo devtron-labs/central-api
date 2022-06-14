@@ -164,6 +164,7 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 
 func (impl *RestHandlerImpl) GetPostHogURL(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Debug("Get PostHog URL")
+	setupResponse(&w, r)
 	impl.WriteJsonResp(w, nil, PosthogEndpoint, http.StatusOK)
 	return
 }
