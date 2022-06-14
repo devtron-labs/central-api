@@ -12,10 +12,13 @@ import (
 	"strconv"
 )
 
+const PosthogEndpoint string = "https://app.posthog.com"
+
 type RestHandler interface {
 	GetReleases(w http.ResponseWriter, r *http.Request)
 	ReleaseWebhookHandler(w http.ResponseWriter, r *http.Request)
 	GetModules(w http.ResponseWriter, r *http.Request)
+	GetPostHogURL(w http.ResponseWriter, r *http.Request)
 }
 
 func NewRestHandlerImpl(logger *zap.SugaredLogger, releaseNoteService pkg.ReleaseNoteService,
@@ -156,5 +159,11 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 		return
 	}
 	impl.WriteJsonResp(w, err, flag, http.StatusOK)
+	return
+}
+
+func (impl *RestHandlerImpl) GetPostHogURL(w http.ResponseWriter, r *http.Request) {
+	impl.logger.Debug("Get PostHog URL")
+	impl.WriteJsonResp(w, nil, PosthogEndpoint, http.StatusOK)
 	return
 }
