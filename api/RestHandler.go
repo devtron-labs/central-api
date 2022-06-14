@@ -12,13 +12,22 @@ import (
 	"strconv"
 )
 
-const PosthogEndpoint string = "https://app.posthog.com"
+const (
+	TelemetryApiKeyEndpoint   string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="
+	TelemetryOptOutApiBaseUrl string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9vcHQtb3V0"
+	PosthogEndpointUrl        string = "https://app.posthog.com"
+)
+
+type PosthogConfig struct {
+	PosthogEndpoint        string `json:"posthogEndpoint,omitempty"`
+	TelemetryOptOutApiBase string `json:"telemetryOptOutApiBase,omitempty"`
+}
 
 type RestHandler interface {
 	GetReleases(w http.ResponseWriter, r *http.Request)
 	ReleaseWebhookHandler(w http.ResponseWriter, r *http.Request)
 	GetModules(w http.ResponseWriter, r *http.Request)
-	GetPostHogURL(w http.ResponseWriter, r *http.Request)
+	GetPostHogInfo(w http.ResponseWriter, r *http.Request)
 }
 
 func NewRestHandlerImpl(logger *zap.SugaredLogger, releaseNoteService pkg.ReleaseNoteService,
@@ -162,9 +171,13 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 	return
 }
 
-func (impl *RestHandlerImpl) GetPostHogURL(w http.ResponseWriter, r *http.Request) {
+func (impl *RestHandlerImpl) GetPostHogInfo(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Debug("Get PostHog URL")
 	setupResponse(&w, r)
-	impl.WriteJsonResp(w, nil, PosthogEndpoint, http.StatusOK)
+	posthogConfig := &PosthogConfig{
+		PosthogEndpoint:        PosthogEndpointUrl,
+		TelemetryOptOutApiBase: TelemetryOptOutApiBaseUrl,
+	}
+	impl.WriteJsonResp(w, nil, posthogConfig, http.StatusOK)
 	return
 }
