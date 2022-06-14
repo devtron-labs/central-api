@@ -39,5 +39,5 @@ func (r MuxRouter) Init() {
 	r.Router.Path("/release/webhook").HandlerFunc(r.restHandler.ReleaseWebhookHandler).Methods("POST")
 	r.Router.Path("/modules").HandlerFunc(r.restHandler.GetModules).Methods("GET")
 	r.Router.Path("/telemetry").HandlerFunc(r.restHandler.GetPostHogInfo).Methods("GET")
-
+	r.Router.Path("/telemetry/optouturl").HandlerFunc(r.restHandler.GetPostHogOptOutApiBaseUrl).Methods("GET")
 }

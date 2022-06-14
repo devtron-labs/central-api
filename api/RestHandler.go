@@ -19,8 +19,8 @@ const (
 )
 
 type PosthogConfig struct {
-	PosthogEndpoint        string `json:"posthogEndpoint,omitempty"`
-	TelemetryOptOutApiBase string `json:"telemetryOptOutApiBase,omitempty"`
+	PosthogEndpoint         string `json:"posthogEndpoint,omitempty"`
+	TelemetryApiKeyEndpoint string `json:"telemetryApiKeyEndpoint,omitempty"`
 }
 
 type RestHandler interface {
@@ -28,6 +28,7 @@ type RestHandler interface {
 	ReleaseWebhookHandler(w http.ResponseWriter, r *http.Request)
 	GetModules(w http.ResponseWriter, r *http.Request)
 	GetPostHogInfo(w http.ResponseWriter, r *http.Request)
+	GetPostHogOptOutApiBaseUrl(w http.ResponseWriter, r *http.Request)
 }
 
 func NewRestHandlerImpl(logger *zap.SugaredLogger, releaseNoteService pkg.ReleaseNoteService,
@@ -172,12 +173,19 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 }
 
 func (impl *RestHandlerImpl) GetPostHogInfo(w http.ResponseWriter, r *http.Request) {
-	impl.logger.Debug("Get PostHog URL")
+	impl.logger.Debug("Get PostHog Info")
 	setupResponse(&w, r)
 	posthogConfig := &PosthogConfig{
-		PosthogEndpoint:        PosthogEndpointUrl,
-		TelemetryOptOutApiBase: TelemetryOptOutApiBaseUrl,
+		PosthogEndpoint:         PosthogEndpointUrl,
+		TelemetryApiKeyEndpoint: TelemetryApiKeyEndpoint,
 	}
 	impl.WriteJsonResp(w, nil, posthogConfig, http.StatusOK)
+	return
+}
+
+func (impl *RestHandlerImpl) GetPostHogOptOutApiBaseUrl(w http.ResponseWriter, r *http.Request) {
+	impl.logger.Debug("Get PostHog Opt-out Base Url")
+	setupResponse(&w, r)
+	impl.WriteJsonResp(w, nil, TelemetryOptOutApiBaseUrl, http.StatusOK)
 	return
 }
