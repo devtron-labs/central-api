@@ -177,14 +177,28 @@ func (impl *ReleaseNoteServiceImpl) GetModules() ([]*common.Module, error) {
 	var modules []*common.Module
 	modules = append(modules, &common.Module{
 		Id:                            1,
-		Name:                          impl.moduleConfig.ModuleConfig.Name,
+		Name:                          "cicd",
 		BaseMinVersionSupported:       impl.moduleConfig.ModuleConfig.BaseMinVersionSupported,
-		IsIncludedInLegacyFullPackage: true,
+		IsIncludedInLegacyFullPackage: false,
 		Description:                   impl.moduleConfig.ModuleConfig.Description,
 		Title:                         impl.moduleConfig.ModuleConfig.Title,
 		Icon:                          impl.moduleConfig.ModuleConfig.Icon,
 		Info:                          impl.moduleConfig.ModuleConfig.Info,
 		Assets:                        impl.moduleConfig.ModuleConfig.Assets,
+		DependentModules:              []int{},
 	})
+	modules = append(modules, &common.Module{
+		Id:                            2,
+		Name:                          "cicd-gitops",
+		BaseMinVersionSupported:       impl.moduleConfig.ModuleConfig.BaseMinVersionSupported,
+		IsIncludedInLegacyFullPackage: true,
+		Description:                   impl.moduleConfig.ModuleConfig.Description,
+		Title:                         "GitOps (by Argo CD)",
+		Icon:                          impl.moduleConfig.ModuleConfig.Icon,
+		Info:                          impl.moduleConfig.ModuleConfig.Info,
+		Assets:                        impl.moduleConfig.ModuleConfig.Assets,
+		DependentModules:              []int{1},
+	})
+
 	return modules, nil
 }
