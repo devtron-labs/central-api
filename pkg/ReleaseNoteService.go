@@ -44,6 +44,7 @@ func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubCli
 }
 
 const ActionPublished = "published"
+const ActionEdited = "edited"
 const EventTypeRelease = "release"
 const TimeFormatLayout = "2006-01-02T15:04:05Z"
 
@@ -55,7 +56,8 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 		return false, err
 	}
 	action := data["action"].(string)
-	if action != ActionPublished {
+	if action != ActionPublished && action != ActionEdited {
+		impl.logger.Warnw("handling only published and edited action, ignored other actions", "action", action)
 		return false, nil
 	}
 	releaseData := data["release"].(map[string]interface{})
@@ -84,7 +86,7 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 
 	//updating cache, fetch existing object and append new item
 	var releaseList []*common.Release
-	releaseList = append(releaseList, releaseInfo)
+	//releaseList = append(releaseList, releaseInfo)
 	cachedReleases := impl.releaseCache.GetReleaseCache()
 	if cachedReleases != nil {
 		itemMap, ok := cachedReleases.(map[string]cache.Item)
@@ -101,6 +103,17 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 				releaseList = append(releaseList, releases...)
 			}
 		}
+	}
+
+	isNew := true
+	for _, release := range releaseList {
+		if release.ReleaseName == releaseInfo.ReleaseName {
+			release.Body = releaseInfo.Body
+			isNew = false
+		}
+	}
+	if isNew {
+		releaseList = append([]*common.Release{releaseInfo}, releaseList...)
 	}
 	impl.mutex.Lock()
 	defer impl.mutex.Unlock()
