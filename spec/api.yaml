@@ -120,9 +120,9 @@ components:
         createdAt:
           type: string
           description: release created at
-        tagUrl:
+        tagLink:
           type: string
-          description: tag url
+          description: tag link
         prerequisite:
            type: boolean
            description: prerequisite required or not

@@ -85,8 +85,11 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 		Body:        body,
 		CreatedAt:   createdAt,
 		PublishedAt: publishedAt,
+		TagLink:     fmt.Sprintf("%s/%s", TagLink, tagName),
 	}
-
+	if strings.Contains(body, PrerequisitesMatcher) {
+		releaseInfo.Prerequisite = true
+	}
 	//updating cache, fetch existing object and append new item
 	var releaseList []*common.Release
 	//releaseList = append(releaseList, releaseInfo)
@@ -172,6 +175,10 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 					CreatedAt:   item.CreatedAt.Time,
 					PublishedAt: item.PublishedAt.Time,
 					Body:        *item.Body,
+					TagLink:     fmt.Sprintf("%s/%s", TagLink, *item.TagName),
+				}
+				if strings.Contains(dto.Body, PrerequisitesMatcher) {
+					dto.Prerequisite = true
 				}
 				releasesDto = append(releasesDto, dto)
 			}
@@ -185,18 +192,7 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			return releaseList, fmt.Errorf("failed operation on fetching releases from github, attempted 3 times")
 		}
 	}
-	impl.buildReleaseResponse(releaseList)
 	return releaseList, nil
-}
-
-func (impl *ReleaseNoteServiceImpl) buildReleaseResponse(releaseList []*common.Release) []*common.Release {
-	for _, release := range releaseList {
-		if strings.Contains(release.Body, PrerequisitesMatcher) {
-			release.Prerequisite = true
-		}
-		release.TagLink = fmt.Sprintf("%s/%s", TagLink, release.TagName)
-	}
-	return releaseList
 }
 
 func (impl *ReleaseNoteServiceImpl) GetModules() ([]*common.Module, error) {
