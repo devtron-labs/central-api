@@ -105,6 +105,8 @@ components:
         - releaseName
         - createdAt
         - body
+        - prerequisite
+        - tagLink
       properties:
         tagName:
           type: string
@@ -118,6 +120,12 @@ components:
         createdAt:
           type: string
           description: release created at
+        tagUrl:
+          type: string
+          description: tag url
+        prerequisite:
+           type: boolean
+           description: prerequisite required or not
     Module:
       type: object
       required:
