@@ -126,6 +126,9 @@ components:
         prerequisite:
            type: boolean
            description: prerequisite required or not
+        prerequisiteMessage:
+           type: string
+           description: prerequisite message
     Module:
       type: object
       required:

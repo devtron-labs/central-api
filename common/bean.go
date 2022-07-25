@@ -21,13 +21,14 @@ type ReleaseList struct {
 }
 
 type Release struct {
-	TagName      string    `json:"tagName"`
-	ReleaseName  string    `json:"releaseName"`
-	CreatedAt    time.Time `json:"createdAt"`
-	PublishedAt  time.Time `json:"publishedAt"`
-	Body         string    `json:"body"`
-	Prerequisite bool      `json:"prerequisite"`
-	TagLink      string    `json:"tagLink"`
+	TagName             string    `json:"tagName"`
+	ReleaseName         string    `json:"releaseName"`
+	CreatedAt           time.Time `json:"createdAt"`
+	PublishedAt         time.Time `json:"publishedAt"`
+	Body                string    `json:"body"`
+	Prerequisite        bool      `json:"prerequisite"`
+	PrerequisiteMessage string    `json:"prerequisiteMessage"`
+	TagLink             string    `json:"tagLink"`
 }
 
 const MODULE_CICD = "cicd"

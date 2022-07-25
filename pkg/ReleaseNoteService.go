@@ -87,9 +87,8 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 		PublishedAt: publishedAt,
 		TagLink:     fmt.Sprintf("%s/%s", TagLink, tagName),
 	}
-	if strings.Contains(body, PrerequisitesMatcher) {
-		releaseInfo.Prerequisite = true
-	}
+	impl.getPrerequisiteContent(releaseInfo)
+
 	//updating cache, fetch existing object and append new item
 	var releaseList []*common.Release
 	//releaseList = append(releaseList, releaseInfo)
@@ -177,9 +176,7 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 					Body:        *item.Body,
 					TagLink:     fmt.Sprintf("%s/%s", TagLink, *item.TagName),
 				}
-				if strings.Contains(dto.Body, PrerequisitesMatcher) {
-					dto.Prerequisite = true
-				}
+				impl.getPrerequisiteContent(dto)
 				releasesDto = append(releasesDto, dto)
 			}
 			result.Releases = releasesDto
@@ -193,6 +190,20 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 		}
 	}
 	return releaseList, nil
+}
+
+func (impl *ReleaseNoteServiceImpl) getPrerequisiteContent(releaseInfo *common.Release) {
+	if strings.Contains(releaseInfo.Body, PrerequisitesMatcher) {
+		releaseInfo.Prerequisite = true
+		start := strings.Index(releaseInfo.Body, PrerequisitesMatcher)
+		end := strings.LastIndex(releaseInfo.Body, PrerequisitesMatcher)
+		if end == 0 {
+			return
+		}
+		prerequisiteMessage := strings.ReplaceAll(releaseInfo.Body[start:end], PrerequisitesMatcher, "")
+		releaseInfo.PrerequisiteMessage = prerequisiteMessage
+	}
+	return
 }
 
 func (impl *ReleaseNoteServiceImpl) GetModules() ([]*common.Module, error) {
