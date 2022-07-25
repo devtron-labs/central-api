@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
+	"strings"
 	"sync"
 	"time"
 )
@@ -47,6 +48,8 @@ const ActionPublished = "published"
 const ActionEdited = "edited"
 const EventTypeRelease = "release"
 const TimeFormatLayout = "2006-01-02T15:04:05Z"
+const TagLink = "https://github.com/devtron-labs/devtron/releases/tag"
+const PrerequisitesMatcher = "<!--upgrade-prerequisites-required-->"
 
 func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (bool, error) {
 	data := make(map[string]interface{})
@@ -182,8 +185,18 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			return releaseList, fmt.Errorf("failed operation on fetching releases from github, attempted 3 times")
 		}
 	}
-
+	impl.buildReleaseResponse(releaseList)
 	return releaseList, nil
+}
+
+func (impl *ReleaseNoteServiceImpl) buildReleaseResponse(releaseList []*common.Release) []*common.Release {
+	for _, release := range releaseList {
+		if strings.Contains(release.Body, PrerequisitesMatcher) {
+			release.Prerequisite = true
+		}
+		release.TagLink = fmt.Sprintf("%s/%s", TagLink, release.TagName)
+	}
+	return releaseList
 }
 
 func (impl *ReleaseNoteServiceImpl) GetModules() ([]*common.Module, error) {
