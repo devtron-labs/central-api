@@ -114,6 +114,8 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 	for _, release := range releaseList {
 		if release.ReleaseName == releaseInfo.ReleaseName {
 			release.Body = releaseInfo.Body
+			release.Prerequisite = releaseInfo.Prerequisite
+			release.PrerequisiteMessage = releaseInfo.PrerequisiteMessage
 			isNew = false
 		}
 	}
