@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
+	"strings"
 	"sync"
 	"time"
 )
@@ -47,6 +48,8 @@ const ActionPublished = "published"
 const ActionEdited = "edited"
 const EventTypeRelease = "release"
 const TimeFormatLayout = "2006-01-02T15:04:05Z"
+const TagLink = "https://github.com/devtron-labs/devtron/releases/tag"
+const PrerequisitesMatcher = "<!--upgrade-prerequisites-required-->"
 
 func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (bool, error) {
 	data := make(map[string]interface{})
@@ -82,7 +85,9 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 		Body:        body,
 		CreatedAt:   createdAt,
 		PublishedAt: publishedAt,
+		TagLink:     fmt.Sprintf("%s/%s", TagLink, tagName),
 	}
+	impl.getPrerequisiteContent(releaseInfo)
 
 	//updating cache, fetch existing object and append new item
 	var releaseList []*common.Release
@@ -169,7 +174,9 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 					CreatedAt:   item.CreatedAt.Time,
 					PublishedAt: item.PublishedAt.Time,
 					Body:        *item.Body,
+					TagLink:     fmt.Sprintf("%s/%s", TagLink, *item.TagName),
 				}
+				impl.getPrerequisiteContent(dto)
 				releasesDto = append(releasesDto, dto)
 			}
 			result.Releases = releasesDto
@@ -182,8 +189,20 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			return releaseList, fmt.Errorf("failed operation on fetching releases from github, attempted 3 times")
 		}
 	}
-
 	return releaseList, nil
+}
+
+func (impl *ReleaseNoteServiceImpl) getPrerequisiteContent(releaseInfo *common.Release) {
+	if strings.Contains(releaseInfo.Body, PrerequisitesMatcher) {
+		releaseInfo.Prerequisite = true
+		start := strings.Index(releaseInfo.Body, PrerequisitesMatcher)
+		end := strings.LastIndex(releaseInfo.Body, PrerequisitesMatcher)
+		if end == 0 {
+			return
+		}
+		prerequisiteMessage := strings.ReplaceAll(releaseInfo.Body[start:end], PrerequisitesMatcher, "")
+		releaseInfo.PrerequisiteMessage = prerequisiteMessage
+	}
 }
 
 func (impl *ReleaseNoteServiceImpl) GetModules() ([]*common.Module, error) {
