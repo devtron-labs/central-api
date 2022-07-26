@@ -203,7 +203,6 @@ func (impl *ReleaseNoteServiceImpl) getPrerequisiteContent(releaseInfo *common.R
 		prerequisiteMessage := strings.ReplaceAll(releaseInfo.Body[start:end], PrerequisitesMatcher, "")
 		releaseInfo.PrerequisiteMessage = prerequisiteMessage
 	}
-	return
 }
 
 func (impl *ReleaseNoteServiceImpl) GetModules() ([]*common.Module, error) {

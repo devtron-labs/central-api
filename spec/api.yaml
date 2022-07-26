@@ -107,6 +107,7 @@ components:
         - body
         - prerequisite
         - tagLink
+        - prerequisiteMessage
       properties:
         tagName:
           type: string
