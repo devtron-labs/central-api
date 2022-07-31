@@ -16,6 +16,7 @@ type RestHandler interface {
 	GetReleases(w http.ResponseWriter, r *http.Request)
 	ReleaseWebhookHandler(w http.ResponseWriter, r *http.Request)
 	GetModules(w http.ResponseWriter, r *http.Request)
+	GetPresetContainerRegistry(w http.ResponseWriter, r *http.Request)
 }
 
 func NewRestHandlerImpl(logger *zap.SugaredLogger, releaseNoteService pkg.ReleaseNoteService,
@@ -33,6 +34,7 @@ type RestHandlerImpl struct {
 	releaseNoteService     pkg.ReleaseNoteService
 	webhookSecretValidator pkg.WebhookSecretValidator
 	client                 *util.GitHubClient
+	dockerRegistryConfig   pkg.PresetDockerRegistryConfigService
 }
 
 func setupResponse(w *http.ResponseWriter, req *http.Request) {
@@ -157,4 +159,9 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 	}
 	impl.WriteJsonResp(w, err, flag, http.StatusOK)
 	return
+}
+
+func (impl *RestHandlerImpl) GetPresetContainerRegistry(w http.ResponseWriter, r *http.Request) {
+	dockerRegistryConfig := impl.dockerRegistryConfig.GetConfig()
+	impl.WriteJsonResp(w, nil, dockerRegistryConfig, http.StatusOK)
 }
