@@ -26,7 +26,8 @@ func InitializeApp() (*App, error) {
 		pkg.NewWebhookSecretValidatorImpl,
 		wire.Bind(new(pkg.WebhookSecretValidator), new(*pkg.WebhookSecretValidatorImpl)),
 		util.NewModuleConfig,
-		pkg.NewReleaseNoteServiceImpl,
+		pkg.NewPresetDockerRegistryConfigServiceImpl,
+		wire.Bind(new(pkg.PresetDockerRegistryConfigService), new(*pkg.PresetDockerRegistryConfigServiceImpl)),
 	)
 	return &App{}, nil
 }

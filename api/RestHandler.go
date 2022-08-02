@@ -20,12 +20,14 @@ type RestHandler interface {
 }
 
 func NewRestHandlerImpl(logger *zap.SugaredLogger, releaseNoteService pkg.ReleaseNoteService,
-	webhookSecretValidator pkg.WebhookSecretValidator, client *util.GitHubClient) *RestHandlerImpl {
+	webhookSecretValidator pkg.WebhookSecretValidator, client *util.GitHubClient,
+	dockerRegistryConfig pkg.PresetDockerRegistryConfigService) *RestHandlerImpl {
 	return &RestHandlerImpl{
 		logger:                 logger,
 		releaseNoteService:     releaseNoteService,
 		webhookSecretValidator: webhookSecretValidator,
 		client:                 client,
+		dockerRegistryConfig:   dockerRegistryConfig,
 	}
 }
 

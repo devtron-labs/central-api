@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"github.com/devtron-labs/central-api/common"
+	"go.uber.org/zap"
 )
 
 type PresetDockerRegistryConfigService interface {
@@ -9,7 +10,15 @@ type PresetDockerRegistryConfigService interface {
 }
 
 type PresetDockerRegistryConfigServiceImpl struct {
-	config common.PresetDockerRegistryConfig
+	config *common.PresetDockerRegistryConfig
+}
+
+func NewPresetDockerRegistryConfigServiceImpl(logger *zap.SugaredLogger) *PresetDockerRegistryConfigServiceImpl {
+	config, _ := common.NewPresetDockerRegistryConfig(logger)
+
+	return &PresetDockerRegistryConfigServiceImpl{
+		config: config,
+	}
 }
 
 func (configService *PresetDockerRegistryConfigServiceImpl) GetConfig() *common.DockerRegistry {
