@@ -56,4 +56,6 @@ type DockerRegistry struct {
 	Connection         string `json:"connection,omitempty"`
 	Cert               string `json:"cert,omitempty"`
 	Active             bool   `json:"active"`
+	PresetRepoName     string `json:"presetRepoName"`
+	ExpiryTimeInSecs   int    `json:"expiryTimeInSecs"`
 }

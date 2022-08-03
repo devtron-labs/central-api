@@ -35,5 +35,7 @@ func (configService *PresetDockerRegistryConfigServiceImpl) GetConfig() *common.
 		Connection:         configService.config.Connection,
 		Cert:               configService.config.Cert,
 		Active:             configService.config.Active,
+		PresetRepoName:     configService.config.PresetRegistryRepoName,
+		ExpiryTimeInSecs:   configService.config.ExpiryTime,
 	}
 }
