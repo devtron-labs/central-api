@@ -45,3 +45,20 @@ type Module struct {
 	Icon                          string   `json:"icon"`
 	Info                          string   `json:"info"`
 }
+
+type DockerRegistry struct {
+	PluginId           string `json:"pluginId,omitempty"`
+	RegistryURL        string `json:"registryUrl,omitempty"`
+	RegistryType       string `json:"registryType,omitempty"`
+	AWSAccessKeyId     string `json:"awsAccessKeyId,omitempty" `
+	AWSSecretAccessKey string `json:"awsSecretAccessKey,omitempty"`
+	AWSRegion          string `json:"awsRegion,omitempty"`
+	Username           string `json:"username,omitempty"`
+	Password           string `json:"password,omitempty"`
+	IsDefault          bool   `json:"isDefault"`
+	Connection         string `json:"connection,omitempty"`
+	Cert               string `json:"cert,omitempty"`
+	Active             bool   `json:"active"`
+	PresetRepoName     string `json:"presetRepoName"`
+	ExpiryTimeInSecs   int    `json:"expiryTimeInSecs"`
+}

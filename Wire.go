@@ -1,4 +1,5 @@
-//+build wireinject
+//go:build wireinject
+// +build wireinject
 
 package main
 
@@ -25,6 +26,8 @@ func InitializeApp() (*App, error) {
 		pkg.NewWebhookSecretValidatorImpl,
 		wire.Bind(new(pkg.WebhookSecretValidator), new(*pkg.WebhookSecretValidatorImpl)),
 		util.NewModuleConfig,
+		pkg.NewPresetDockerRegistryConfigServiceImpl,
+		wire.Bind(new(pkg.PresetDockerRegistryConfigService), new(*pkg.PresetDockerRegistryConfigServiceImpl)),
 	)
 	return &App{}, nil
 }

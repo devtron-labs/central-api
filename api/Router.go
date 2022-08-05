@@ -38,5 +38,6 @@ func (r MuxRouter) Init() {
 	r.Router.Path("/release/notes").HandlerFunc(r.restHandler.GetReleases).Methods("GET")
 	r.Router.Path("/release/webhook").HandlerFunc(r.restHandler.ReleaseWebhookHandler).Methods("POST")
 	r.Router.Path("/modules").HandlerFunc(r.restHandler.GetModules).Methods("GET")
+	r.Router.Path("/presetCR").HandlerFunc(r.restHandler.GetPresetContainerRegistry).Methods("GET")
 
 }
