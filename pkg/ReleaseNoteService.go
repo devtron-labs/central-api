@@ -18,6 +18,7 @@ type ReleaseNoteService interface {
 	GetModules() ([]*common.Module, error)
 	GetReleases() ([]*common.Release, error)
 	UpdateReleases(requestBodyBytes []byte) (bool, error)
+	GetModulesV2() ([]*common.Module, error)
 }
 
 type ReleaseNoteServiceImpl struct {
@@ -209,7 +210,7 @@ func (impl *ReleaseNoteServiceImpl) GetModules() ([]*common.Module, error) {
 	var modules []*common.Module
 	modules = append(modules, &common.Module{
 		Id:                            1,
-		Name:                          impl.moduleConfig.ModuleConfig.Name,
+		Name:                          "cicd",
 		BaseMinVersionSupported:       impl.moduleConfig.ModuleConfig.BaseMinVersionSupported,
 		IsIncludedInLegacyFullPackage: true,
 		Description:                   impl.moduleConfig.ModuleConfig.Description,
@@ -217,6 +218,37 @@ func (impl *ReleaseNoteServiceImpl) GetModules() ([]*common.Module, error) {
 		Icon:                          impl.moduleConfig.ModuleConfig.Icon,
 		Info:                          impl.moduleConfig.ModuleConfig.Info,
 		Assets:                        impl.moduleConfig.ModuleConfig.Assets,
+		DependentModules:              []int{},
 	})
+	return modules, nil
+}
+
+func (impl *ReleaseNoteServiceImpl) GetModulesV2() ([]*common.Module, error) {
+	var modules []*common.Module
+	modules = append(modules, &common.Module{
+		Id:                            1,
+		Name:                          "cicd",
+		BaseMinVersionSupported:       impl.moduleConfig.ModuleConfig.BaseMinVersionSupported,
+		IsIncludedInLegacyFullPackage: true,
+		Description:                   impl.moduleConfig.ModuleConfig.Description,
+		Title:                         impl.moduleConfig.ModuleConfig.Title,
+		Icon:                          impl.moduleConfig.ModuleConfig.Icon,
+		Info:                          impl.moduleConfig.ModuleConfig.Info,
+		Assets:                        impl.moduleConfig.ModuleConfig.Assets,
+		DependentModules:              []int{},
+	})
+	modules = append(modules, &common.Module{
+		Id:                            2,
+		Name:                          "argo-cd",
+		BaseMinVersionSupported:       "v0.5.3",
+		IsIncludedInLegacyFullPackage: true,
+		Description:                   "<div class=\"module-details__feature-info fs-14 fw-4\"><p>GitOps is an operational framework that takes DevOps best practices used for application development such as version control, collaboration, compliance and applies them to infrastructure automation. Similar to how teams use application source code, operations teams that adopt GitOps use configuration files stored as code (infrastructure as code).</p><p>Devtron uses GitOps to automate the process of provisioning infrastructure. GitOps configuration files generate the same infrastructure environment every time it’s deployed, just as application source code generates the same application binaries every time it’s built.</p><h3 class=\"module-details__features-list-heading fs-14 fw-6\">Features:</h3><ul class=\"module-details__features-list pl-22 mb-24\"><li>Implements GitOps to manage the state of Kubernetes applications.</li><li>Simplified and abstracted integration with ArgoCD for GitOps operation.</li><li>No prior knowledge of ArgoCD is required.</li></ul></div>",
+		Title:                         "GitOps (by Argo CD)",
+		Icon:                          "https://cdn.devtron.ai/images/ic-integration-gitops-argocd.png",
+		Info:                          "Declarative GitOps CD for Kubernetes powered by Argo CD",
+		Assets:                        []string{"https://cdn.devtron.ai/images/img-gitops-1.png"},
+		DependentModules:              []int{1},
+	})
+
 	return modules, nil
 }
