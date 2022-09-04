@@ -16,6 +16,7 @@ type RestHandler interface {
 	GetReleases(w http.ResponseWriter, r *http.Request)
 	ReleaseWebhookHandler(w http.ResponseWriter, r *http.Request)
 	GetModules(w http.ResponseWriter, r *http.Request)
+	GetModulesV2(w http.ResponseWriter, r *http.Request)
 }
 
 func NewRestHandlerImpl(logger *zap.SugaredLogger, releaseNoteService pkg.ReleaseNoteService,
@@ -70,6 +71,18 @@ func (impl *RestHandlerImpl) GetModules(w http.ResponseWriter, r *http.Request) 
 	impl.logger.Debug("get all modules")
 	setupResponse(&w, r)
 	modules, err := impl.releaseNoteService.GetModules()
+	if err != nil {
+		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	impl.WriteJsonResp(w, nil, modules, http.StatusOK)
+	return
+}
+
+func (impl *RestHandlerImpl) GetModulesV2(w http.ResponseWriter, r *http.Request) {
+	impl.logger.Debug("get all modules")
+	setupResponse(&w, r)
+	modules, err := impl.releaseNoteService.GetModulesV2()
 	if err != nil {
 		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

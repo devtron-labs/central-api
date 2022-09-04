@@ -44,4 +44,5 @@ type Module struct {
 	Title                         string   `json:"title"`
 	Icon                          string   `json:"icon"`
 	Info                          string   `json:"info"`
+	DependentModules              []int    `json:"dependentModules"`
 }
