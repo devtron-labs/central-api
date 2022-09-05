@@ -251,19 +251,6 @@ func (impl *ReleaseNoteServiceImpl) GetModulesV2() ([]*common.Module, error) {
 		DependentModules:              []int{1},
 	})
 
-	modules = append(modules, &common.Module{
-		Id:                            3,
-		Name:                          "security-clair",
-		BaseMinVersionSupported:       "v0.5.3",
-		IsIncludedInLegacyFullPackage: true,
-		Description:                   "<div class=\"module-details__feature-info fs-14 fw-4\"><p>GitOps is an operational framework that takes DevOps best practices used for application development such as version control, collaboration, compliance and applies them to infrastructure automation. Similar to how teams use application source code, operations teams that adopt GitOps use configuration files stored as code (infrastructure as code).</p><p>Devtron uses GitOps to automate the process of provisioning infrastructure. GitOps configuration files generate the same infrastructure environment every time it’s deployed, just as application source code generates the same application binaries every time it’s built.</p><h3 class=\"module-details__features-list-heading fs-14 fw-6\">Features:</h3><ul class=\"module-details__features-list pl-22 mb-24\"><li>Implements GitOps to manage the state of Kubernetes applications.</li><li>Simplified and abstracted integration with ArgoCD for GitOps operation.</li><li>No prior knowledge of ArgoCD is required.</li></ul></div>",
-		Title:                         "Vulnerability scanning (Clair)",
-		Icon:                          "https://cdn.devtron.ai/images/ic-integration-gitops-argocd.png",
-		Info:                          "Seamless integration with Clair for vulnerability scanning of images.",
-		Assets:                        []string{"https://cdn.devtron.ai/images/img-gitops-1.png"},
-		DependentModules:              []int{1},
-	})
-
 	return modules, nil
 }
 
