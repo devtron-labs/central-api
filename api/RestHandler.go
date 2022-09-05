@@ -17,6 +17,7 @@ type RestHandler interface {
 	ReleaseWebhookHandler(w http.ResponseWriter, r *http.Request)
 	GetModules(w http.ResponseWriter, r *http.Request)
 	GetModulesV2(w http.ResponseWriter, r *http.Request)
+	GetModuleByName(w http.ResponseWriter, r *http.Request)
 }
 
 func NewRestHandlerImpl(logger *zap.SugaredLogger, releaseNoteService pkg.ReleaseNoteService,
@@ -169,5 +170,19 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 		return
 	}
 	impl.WriteJsonResp(w, err, flag, http.StatusOK)
+	return
+}
+
+func (impl *RestHandlerImpl) GetModuleByName(w http.ResponseWriter, r *http.Request) {
+	impl.logger.Debug("get module meta info by name")
+	setupResponse(&w, r)
+	vars := mux.Vars(r)
+	name := vars["name"]
+	module, err := impl.releaseNoteService.GetModuleByName(name)
+	if err != nil {
+		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	impl.WriteJsonResp(w, nil, module, http.StatusOK)
 	return
 }

@@ -39,5 +39,7 @@ func (r MuxRouter) Init() {
 	r.Router.Path("/release/webhook").HandlerFunc(r.restHandler.ReleaseWebhookHandler).Methods("POST")
 	r.Router.Path("/modules").HandlerFunc(r.restHandler.GetModules).Methods("GET")
 	r.Router.Path("/v2/modules").HandlerFunc(r.restHandler.GetModulesV2).Methods("GET")
-
+	r.Router.Path("/module").
+		Queries("name", "{name}").
+		HandlerFunc(r.restHandler.GetModuleByName).Methods("GET")
 }
