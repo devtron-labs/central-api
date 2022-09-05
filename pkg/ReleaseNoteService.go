@@ -19,6 +19,7 @@ type ReleaseNoteService interface {
 	GetReleases() ([]*common.Release, error)
 	UpdateReleases(requestBodyBytes []byte) (bool, error)
 	GetModulesV2() ([]*common.Module, error)
+	GetModuleByName(name string) (*common.Module, error)
 }
 
 type ReleaseNoteServiceImpl struct {
@@ -251,4 +252,19 @@ func (impl *ReleaseNoteServiceImpl) GetModulesV2() ([]*common.Module, error) {
 	})
 
 	return modules, nil
+}
+
+func (impl *ReleaseNoteServiceImpl) GetModuleByName(name string) (*common.Module, error) {
+	module := &common.Module{}
+	modules, err := impl.GetModulesV2()
+	if err != nil {
+		impl.logger.Errorw("error on fetching modules", "err", err)
+		return module, err
+	}
+	for _, item := range modules {
+		if item.Name == name {
+			module = item
+		}
+	}
+	return module, nil
 }
