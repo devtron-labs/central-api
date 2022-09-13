@@ -263,6 +263,45 @@ func (impl *ReleaseNoteServiceImpl) GetModulesV2() ([]*common.Module, error) {
 		Assets:                        []string{"https://cdn.devtron.ai/images/img-security-clair-1.png", "https://cdn.devtron.ai/images/img-security-clair-2.png", "https://cdn.devtron.ai/images/img-security-clair-3.png", "https://cdn.devtron.ai/images/img-security-clair-4.png"},
 		DependentModules:              []int{1},
 	})
+
+	modules = append(modules, &common.Module{
+		Id:                            4,
+		Name:                          "notifier",
+		BaseMinVersionSupported:       "v0.6.0",
+		IsIncludedInLegacyFullPackage: true,
+		Description:                   "<div class=\"module-details__feature-info fs-14 fw-4\"><p>Receive alerts for build and deployment pipelines on trigger, success, and failure events. An alert will be sent to desired slack channel and Email(supports SES and SMTP configurations) with the required information to take be able to quick actions whenever required.</p><h3 class=\"module-details__features-list-heading fs-14 fw-6\">Features:</h3><ul class=\"module-details__features-list pl-22 mb-24\"><li>Get alerted for start, success, and failure events on desired build pipelines</li><li>Get alerted for start, success, and failure events on desired deployment pipelines</li><li>Receive alerts on desired Slack channels via webhook</li><li>Receive alerts on Email (supports SES and SMTP)</li></ul><h3 class=\"module-details__features-list-heading fs-14 fw-6\">How to use?</h3><span>After the integration is installed, you can configure notifications in the Global configurations section.\n<a href=\"https://docs.devtron.ai/getting-started/global-configurations/manage-notification\" target=\"_blank\">View Documentation</a>\n</span></div>",
+		Title:                         "Notifications",
+		Icon:                          "https://cdn.devtron.ai/images/ic-integration-notifications.png",
+		Info:                          "Get notified when build and deployment pipelines start, fail or succeed.",
+		Assets:                        []string{"https://cdn.devtron.ai/images/img-notification-1.png", "https://cdn.devtron.ai/images/img-notification-2.png", "https://cdn.devtron.ai/images/img-notification-3.png"},
+		DependentModules:              []int{1},
+	})
+
+	modules = append(modules, &common.Module{
+		Id:                            5,
+		Name:                          "eso",
+		BaseMinVersionSupported:       "v0.6.0",
+		IsIncludedInLegacyFullPackage: true,
+		Description:                   "<div class=\"module-details__feature-info fs-14 fw-4\"><p>External Secrets Operator is a Kubernetes operator that integrates external secret management systems like AWS Secrets Manager, HashiCorp Vault, Google Secrets Manager, Azure Key Vault and many more. The operator reads information from external APIs and automatically injects the values into a Kubernetes Secret.</p><h3 class=\"module-details__features-list-heading fs-14 fw-6\">Features:</h3><span>Use below external secret management systems with Devtron</span><ul class=\"module-details__features-list pl-22 mb-24\"><li><a href=\"https://aws.amazon.com/secrets-manager/\" target=\"_blank\">AWS Secrets Manager</a></li><li><a href=\"https://www.vaultproject.io/\" target=\"_blank\">HashiCorp Vault</a></li><li><a href=\"https://azure.microsoft.com/en-us/services/key-vault/\" target=\"_blank\">Azure Key Vault\n</a></li><li><a href=\"https://cloud.google.com/secret-manager\" target=\"_blank\">Google Secrets Manager</a></li></ul><h3 class=\"module-details__features-list-heading fs-14 fw-6\">How to use?</h3><span>After the integration is installed, above mentioned external secret options will be available to use as ‘Data types’ in the secrets section within an application's configuration.\n<a href=\"https://docs.devtron.ai/usage/applications/creating-application/secrets#external-secrets\" target=\"_blank\">Learn more</a>\n</span></div>",
+		Title:                         "External secrets operator",
+		Icon:                          "https://cdn.devtron.ai/images/ic-integration-eso.png",
+		Info:                          "A Kubernetes operator that integrates external secrets management systems.",
+		Assets:                        []string{"https://cdn.devtron.ai/images/img-eso-1.png"},
+		DependentModules:              []int{1},
+	})
+
+	modules = append(modules, &common.Module{
+		Id:                            6,
+		Name:                          "monitoring.grafana",
+		BaseMinVersionSupported:       "v0.6.0",
+		IsIncludedInLegacyFullPackage: true,
+		Description:                   "<div class=\"module-details__feature-info fs-14 fw-4\"><p>Devtron leverages the power of Grafana to show application metrics like CPU, Memory utilization, Status 4xx/ 5xx/ 2xx, Throughput, and Latency.</p><h3 class=\"module-details__features-list-heading fs-14 fw-6\">Features:</h3><ul class=\"module-details__features-list pl-22 mb-24\"><li>CPU usage: Shows the overall utilization of CPU by an application. It is available as both, aggregated or per pod.</li><li>Memory usage: Shows the overall utilization of memory by an application. It is available as both, aggregated or per pod.</li><li>Throughput: Indicates the number of requests processed by an application per minute.</li><li>Status codes: Indicates the application’s response to the client’s request with a specific status code i.e 1xx(Communicate transfer protocol level information), 2xx(Client’s request was accepted successfully), 3xx(Client must take some additional action to complete their request), 4xx(Client side error) or 5xx(Server side error).</li></ul><h3 class=\"module-details__features-list-heading fs-14 fw-6\">How to use?</h3><span>After the integration is installed, please refer the documentation to enable standard and advanced application metrics.\n<a href=\"https://docs.devtron.ai/v/v0.5/usage/applications/app-details/app-metrics\" target=\"_blank\">View Documentation</a>\n</span></div>",
+		Title:                         "Monitoring (Grafana)",
+		Icon:                          "https://cdn.devtron.ai/images/ic-integration-grafana.png",
+		Info:                          "Enables metrics like CPU, memory, status codes, throughput, and latency for applications.",
+		Assets:                        []string{"https://cdn.devtron.ai/images/img-grafana-1.png", "https://cdn.devtron.ai/images/img-grafana-2.png"},
+		DependentModules:              []int{1},
+	})
 	return modules, nil
 }
 
