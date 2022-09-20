@@ -279,19 +279,6 @@ func (impl *ReleaseNoteServiceImpl) GetModulesV2() ([]*common.Module, error) {
 
 	modules = append(modules, &common.Module{
 		Id:                            5,
-		Name:                          "external-secrets",
-		BaseMinVersionSupported:       "v0.6.0",
-		IsIncludedInLegacyFullPackage: true,
-		Description:                   "<div class=\"module-details__feature-info fs-14 fw-4\"><p>External Secret integrates external secret management systems such as <a href=\"https://aws.amazon.com/secrets-manager/\" target=\"_blank\">AWS Secrets Manager</a>, <a href=\"https://www.vaultproject.io/\" target=\"_blank\">HashiCorp Vault</a>, <a href=\"https://cloud.google.com/secret-manager\" target=\"_blank\">Google Secret Manager</a>, <a href=\"https://azure.microsoft.com/en-us/services/key-vault/\" target=\"_blank\">Azure Key Vault</a> etc. to Devtron. The integration extracts the information from external APIs (e.g., Google Secret Manger) and automatically injects the values as secrets into Kubernetes pods.</p><h3 class=\"module-details__features-list-heading fs-14 fw-6\">Features:</h3><ul class=\"module-details__features-list pl-22 mb-24\"><li>Extracts the information from external APIs (e.g., Google Secret Manger) and automatically injects the values as secrets into Kubernetes pods.</li><li>Provides security and encryption as compared to Kubernetes generic secret</li></ul><h3 class=\"module-details__features-list-heading fs-14 fw-6\">How to use the Integration?</h3><span>After you install the integration, the external secret options (e.g., Google Secret Manager) will be available as ‘Data type’ in the “Secrets” section. To update the necessary details for the data type, refer\n<a href=\"https://docs.devtron.ai/usage/applications/creating-application/secrets#kubernetes-external-secret\" target=\"_blank\">here</a>.\n</span></div>",
-		Title:                         "External Secret",
-		Icon:                          "https://cdn.devtron.ai/images/ic-integration-eso.png",
-		Info:                          "Integrates external secret management systems.",
-		Assets:                        []string{"https://cdn.devtron.ai/images/img-eso-1.png"},
-		DependentModules:              []int{1},
-	})
-
-	modules = append(modules, &common.Module{
-		Id:                            6,
 		Name:                          "monitoring.grafana",
 		BaseMinVersionSupported:       "v0.6.0",
 		IsIncludedInLegacyFullPackage: true,
