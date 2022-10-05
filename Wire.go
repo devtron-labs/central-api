@@ -1,4 +1,5 @@
-//+build wireinject
+//go:build wireinject
+// +build wireinject
 
 package main
 
@@ -25,6 +26,9 @@ func InitializeApp() (*App, error) {
 		pkg.NewWebhookSecretValidatorImpl,
 		wire.Bind(new(pkg.WebhookSecretValidator), new(*pkg.WebhookSecretValidatorImpl)),
 		util.NewModuleConfig,
+
+		pkg.NewCiBuildMetadataServiceImpl,
+		wire.Bind(new(pkg.CiBuildMetadataService), new(*pkg.CiBuildMetadataServiceImpl)),
 	)
 	return &App{}, nil
 }
