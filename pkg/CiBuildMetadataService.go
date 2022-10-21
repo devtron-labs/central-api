@@ -124,9 +124,94 @@ func setupBuildpackMetadata() *common.BuildPackMetadata {
 		LanguageSupport: herokuLanguageSupport,
 	})
 	buildpackMetadata := &common.BuildPackMetadata{
-		Builders: builders,
+		Builders:        builders,
+		LanguageBuilder: CreateLanguageBuilderMetadata(),
 	}
 	return buildpackMetadata
+}
+
+func CreateLanguageBuilderMetadata() []*common.LanguageBuilder {
+	var languageBuilders []*common.LanguageBuilder
+	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
+		Language: common.JAVA,
+		Versions: []string{"1.8", "1.11"},
+		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
+			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
+			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_JVM_VERSION"},
+			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_JVM_VERSION"},
+			{Id: "paketobuildpacks/builder:tiny", BuilderLangEnvParam: "BP_JVM_VERSION"},
+			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
+		},
+	})
+	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
+		Language: common.PYTHON,
+		Versions: []string{"3.6.*"},
+		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
+			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
+			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_CPYTHON_VERSION"},
+			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_CPYTHON_VERSION"},
+			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
+		},
+	})
+	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
+		Language: common.PHP,
+		Versions: []string{"16.x"},
+		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
+			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
+			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: ""},
+			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: ""},
+			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
+		},
+	})
+	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
+		Language: common.GO,
+		Versions: []string{"16.x", "18.x"},
+		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
+			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
+			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_GO_VERSION"},
+			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_GO_VERSION"},
+			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: "GOVERSION"},
+			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: "GOVERSION"},
+		},
+	})
+	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
+		Language: common.RUBY,
+		Versions: []string{"16.x"},
+		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
+			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
+			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_MRI_VERSION"},
+			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_MRI_VERSION"},
+			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
+		},
+	})
+	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
+		Language: common.DOTNET,
+		Versions: []string{"5.0.4"},
+		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
+			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
+			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_DOTNET_FRAMEWORK_VERSION"},
+			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_DOTNET_FRAMEWORK_VERSION"},
+			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
+		},
+	})
+	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
+		Language: common.NODE,
+		Versions: []string{"16.x"},
+		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
+			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
+			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_NODE_VERSION"},
+			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_NODE_VERSION"},
+			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
+		},
+	})
+
+	return languageBuilders
 }
 
 func (impl CiBuildMetadataServiceImpl) GetDockerfileTemplateMetadata() *common.DockerfileTemplateMetadata {

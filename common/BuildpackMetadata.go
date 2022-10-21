@@ -30,8 +30,13 @@ type LanguageSupport struct {
 	Versions            []string
 }
 
+type BuilderLanguageMetadata struct {
+	Id                  string
+	BuilderLangEnvParam string
+}
+
 type LanguageBuilder struct {
-	Language        Language
-	BuilderId       string
-	BuilderEnvParam string
+	Language                Language
+	Versions                []string
+	BuilderLanguageMetadata []*BuilderLanguageMetadata
 }
