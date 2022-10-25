@@ -47,26 +47,26 @@ func setupDockerfileTemplateMetadata() *common.DockerfileTemplateMetadata {
 	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
 		Language:    common.PYTHON,
 		Framework:   common.DJANGO,
-		TemplateUrl: "",
+		TemplateUrl: "https://github.com/devtron-labs/devtron/blob/main/sample-docker-templates/django/Dockerfile",
 	})
 	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
 		Language:    common.PYTHON,
 		Framework:   common.FLASK,
-		TemplateUrl: "",
+		TemplateUrl: "https://github.com/devtron-labs/devtron/blob/main/sample-docker-templates/flask/Dockerfile",
 	})
 	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
 		Language:    common.NODE,
-		TemplateUrl: "",
+		TemplateUrl: "https://github.com/devtron-labs/devtron/blob/main/sample-docker-templates/node/Dockerfile",
 	})
-	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
-		Language:    common.PHP,
-		TemplateUrl: "",
-	})
-	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
-		Language:    common.RUBY,
-		Framework:   common.RAILS,
-		TemplateUrl: "",
-	})
+	//languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
+	//	Language:    common.PHP,
+	//	TemplateUrl: "",
+	//})
+	//languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
+	//	Language:    common.RUBY,
+	//	Framework:   common.RAILS,
+	//	TemplateUrl: "",
+	//})
 	return &common.DockerfileTemplateMetadata{
 		LanguageFrameworks: languageFrameworks,
 	}
@@ -140,18 +140,18 @@ func CreateLanguageBuilderMetadata() []*common.LanguageBuilder {
 			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_JVM_VERSION"},
 			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_JVM_VERSION"},
 			{Id: "paketobuildpacks/builder:tiny", BuilderLangEnvParam: "BP_JVM_VERSION"},
-			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			//{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
 			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
 		},
 	})
 	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
 		Language: common.PYTHON,
-		Versions: []string{"3.6.*"},
+		Versions: []string{"3.7.*"},
 		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
 			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
 			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_CPYTHON_VERSION"},
 			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_CPYTHON_VERSION"},
-			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			//{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
 			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
 		},
 	})
@@ -162,7 +162,7 @@ func CreateLanguageBuilderMetadata() []*common.LanguageBuilder {
 			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
 			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: ""},
 			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: ""},
-			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			//{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
 			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
 		},
 	})
@@ -174,18 +174,18 @@ func CreateLanguageBuilderMetadata() []*common.LanguageBuilder {
 			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_GO_VERSION"},
 			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_GO_VERSION"},
 			{Id: "paketobuildpacks/builder:tiny", BuilderLangEnvParam: "BP_GO_VERSION"},
-			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: "GOVERSION"},
+			//{Id: "heroku/buildpacks:18", BuilderLangEnvParam: "GOVERSION"},
 			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: "GOVERSION"},
 		},
 	})
 	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
 		Language: common.RUBY,
-		Versions: []string{"16.x"},
+		Versions: []string{"2.7"},
 		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
 			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
 			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_MRI_VERSION"},
 			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_MRI_VERSION"},
-			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			//{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
 			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
 		},
 	})
@@ -196,7 +196,7 @@ func CreateLanguageBuilderMetadata() []*common.LanguageBuilder {
 			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
 			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_DOTNET_FRAMEWORK_VERSION"},
 			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_DOTNET_FRAMEWORK_VERSION"},
-			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			//{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
 			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
 		},
 	})
@@ -207,7 +207,7 @@ func CreateLanguageBuilderMetadata() []*common.LanguageBuilder {
 			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
 			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_NODE_VERSION"},
 			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_NODE_VERSION"},
-			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
+			//{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
 			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
 		},
 	})
