@@ -202,7 +202,7 @@ func CreateLanguageBuilderMetadata() []*common.LanguageBuilder {
 	})
 	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
 		Language: common.NODE,
-		Versions: []string{"16.x"},
+		Versions: []string{"16.x", "18.x"},
 		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
 			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
 			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_NODE_VERSION"},
