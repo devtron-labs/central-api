@@ -168,11 +168,12 @@ func CreateLanguageBuilderMetadata() []*common.LanguageBuilder {
 	})
 	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
 		Language: common.GO,
-		Versions: []string{"16.x", "18.x"},
+		Versions: []string{"1.18", "1.19"},
 		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
 			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
 			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_GO_VERSION"},
 			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_GO_VERSION"},
+			{Id: "paketobuildpacks/builder:tiny", BuilderLangEnvParam: "BP_GO_VERSION"},
 			{Id: "heroku/buildpacks:18", BuilderLangEnvParam: "GOVERSION"},
 			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: "GOVERSION"},
 		},
