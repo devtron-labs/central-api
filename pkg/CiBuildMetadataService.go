@@ -47,16 +47,16 @@ func setupDockerfileTemplateMetadata() *common.DockerfileTemplateMetadata {
 	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
 		Language:    common.PYTHON,
 		Framework:   common.DJANGO,
-		TemplateUrl: "https://raw.githubusercontent.com/devtron-labs/devtron/blob/buildpack-support/sample-docker-templates/django/Dockerfile",
+		TemplateUrl: "https://raw.githubusercontent.com/devtron-labs/devtron/buildpack-support/sample-docker-templates/django/Dockerfile",
 	})
 	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
 		Language:    common.PYTHON,
 		Framework:   common.FLASK,
-		TemplateUrl: "https://raw.githubusercontent.com/devtron-labs/devtron/blob/buildpack-support/sample-docker-templates/flask/Dockerfile",
+		TemplateUrl: "https://raw.githubusercontent.com/devtron-labs/devtron/buildpack-support/sample-docker-templates/flask/Dockerfile",
 	})
 	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
 		Language:    common.NODE,
-		TemplateUrl: "https://raw.githubusercontent.com/devtron-labs/devtron/blob/buildpack-support/sample-docker-templates/node/Dockerfile",
+		TemplateUrl: "https://raw.githubusercontent.com/devtron-labs/devtron/buildpack-support/sample-docker-templates/node/Dockerfile",
 	})
 	//languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
 	//	Language:    common.PHP,
