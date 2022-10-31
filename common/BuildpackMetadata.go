@@ -37,6 +37,7 @@ type BuilderLanguageMetadata struct {
 
 type LanguageBuilder struct {
 	Language                Language
+	LanguageIcon            string
 	Versions                []string
 	BuilderLanguageMetadata []*BuilderLanguageMetadata
 }
