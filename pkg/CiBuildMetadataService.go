@@ -157,11 +157,11 @@ func CreateLanguageBuilderMetadata() []*common.LanguageBuilder {
 	})
 	languageBuilders = append(languageBuilders, &common.LanguageBuilder{
 		Language: common.PHP,
-		Versions: []string{"16.x"},
+		Versions: []string{"7.4"},
 		BuilderLanguageMetadata: []*common.BuilderLanguageMetadata{
 			{Id: "gcr.io/buildpacks/builder:v1", BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION"},
-			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: ""},
-			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: ""},
+			{Id: "paketobuildpacks/builder:full", BuilderLangEnvParam: "BP_PHP_VERSION"},
+			{Id: "paketobuildpacks/builder:base", BuilderLangEnvParam: "BP_PHP_VERSION"},
 			//{Id: "heroku/buildpacks:18", BuilderLangEnvParam: ""},
 			{Id: "heroku/buildpacks:20", BuilderLangEnvParam: ""},
 		},
