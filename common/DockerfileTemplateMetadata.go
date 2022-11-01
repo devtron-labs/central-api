@@ -5,9 +5,10 @@ type DockerfileTemplateMetadata struct {
 }
 
 type LanguageFramework struct {
-	Language    Language
-	Framework   Framework
-	TemplateUrl string
+	Language     Language
+	Framework    Framework
+	LanguageIcon string
+	TemplateUrl  string
 }
 
 type Framework string
