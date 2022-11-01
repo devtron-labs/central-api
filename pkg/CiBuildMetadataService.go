@@ -1,8 +1,11 @@
 package pkg
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/central-api/common"
 	"go.uber.org/zap"
+	"os"
 )
 
 type CiBuildMetadataService interface {
@@ -29,50 +32,75 @@ func NewCiBuildMetadataServiceImpl(logger *zap.SugaredLogger) *CiBuildMetadataSe
 
 func setupDockerfileTemplateMetadata() *common.DockerfileTemplateMetadata {
 
-	var languageFrameworks []*common.LanguageFramework
-	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
-		Language:     common.JAVA,
-		Framework:    common.MAVEN,
-		LanguageIcon: "https://cdn.devtron.ai/images/ic-Java.png",
-		TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/java/Maven_Dockerfile",
-	})
-	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
-		Language:     common.JAVA,
-		Framework:    common.GRADLE,
-		LanguageIcon: "https://cdn.devtron.ai/images/ic-Java.png",
-		TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/java/Gradle_Dockerfile",
-	})
-	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
-		Language:     common.GO,
-		LanguageIcon: "https://cdn.devtron.ai/images/ic-go.png",
-		TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/go/Dockerfile",
-	})
-	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
-		Language:     common.PYTHON,
-		Framework:    common.DJANGO,
-		LanguageIcon: "https://cdn.devtron.ai/images/ic-python.png",
-		TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/django/Dockerfile",
-	})
-	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
-		Language:     common.PYTHON,
-		Framework:    common.FLASK,
-		LanguageIcon: "https://cdn.devtron.ai/images/ic-python.png",
-		TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/flask/Dockerfile",
-	})
-	languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
-		Language:     common.NODE,
-		LanguageIcon: "https://cdn.devtron.ai/images/ic-nodejs.png",
-		TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/node/Dockerfile",
-	})
-	return &common.DockerfileTemplateMetadata{
-		LanguageFrameworks: languageFrameworks,
+	dockerfileTemplateData, err := os.ReadFile("/DockerfileTemplateData.json")
+	if err != nil {
+		fmt.Println("error occurred while reading file DockerfileTemplateData.json", "error", err)
+		return nil
 	}
+	dockerfileTemplateMetadata := &common.DockerfileTemplateMetadata{}
+	err = json.Unmarshal(dockerfileTemplateData, dockerfileTemplateMetadata)
+	if err != nil {
+		fmt.Println("error occurred while unmarshalling json", "data", string(dockerfileTemplateData), "err", err)
+		return nil
+	}
+	return dockerfileTemplateMetadata
+
+	//var languageFrameworks []*common.LanguageFramework
+	//languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
+	//	Language:     common.JAVA,
+	//	Framework:    common.MAVEN,
+	//	LanguageIcon: "https://cdn.devtron.ai/images/ic-Java.png",
+	//	TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/java/Maven_Dockerfile",
+	//})
+	//languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
+	//	Language:     common.JAVA,
+	//	Framework:    common.GRADLE,
+	//	LanguageIcon: "https://cdn.devtron.ai/images/ic-Java.png",
+	//	TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/java/Gradle_Dockerfile",
+	//})
+	//languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
+	//	Language:     common.GO,
+	//	LanguageIcon: "https://cdn.devtron.ai/images/ic-go.png",
+	//	TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/go/Dockerfile",
+	//})
+	//languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
+	//	Language:     common.PYTHON,
+	//	Framework:    common.DJANGO,
+	//	LanguageIcon: "https://cdn.devtron.ai/images/ic-python.png",
+	//	TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/django/Dockerfile",
+	//})
+	//languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
+	//	Language:     common.PYTHON,
+	//	Framework:    common.FLASK,
+	//	LanguageIcon: "https://cdn.devtron.ai/images/ic-python.png",
+	//	TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/flask/Dockerfile",
+	//})
+	//languageFrameworks = append(languageFrameworks, &common.LanguageFramework{
+	//	Language:     common.NODE,
+	//	LanguageIcon: "https://cdn.devtron.ai/images/ic-nodejs.png",
+	//	TemplateUrl:  "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/node/Dockerfile",
+	//})
+	//return &common.DockerfileTemplateMetadata{
+	//	LanguageFrameworks: languageFrameworks,
+	//}
 }
 
 func setupBuildpackMetadata() *common.BuildPackMetadata {
-	buildpackMetadata := &common.BuildPackMetadata{
-		LanguageBuilder: CreateLanguageBuilderMetadata(),
+
+	buildpackMetadataBytes, err := os.ReadFile("/BuildpackMetadata.json")
+	if err != nil {
+		fmt.Println("error occurred while reading file DockerfileTemplateData.json", "error", err)
+		return nil
 	}
+	buildpackMetadata := &common.BuildPackMetadata{}
+	err = json.Unmarshal(buildpackMetadataBytes, buildpackMetadata)
+	if err != nil {
+		fmt.Println("error occurred while unmarshalling buildpack json", "data", string(buildpackMetadataBytes), "err", err)
+		return nil
+	}
+	//buildpackMetadata := &common.BuildPackMetadata{
+	//	LanguageBuilder: CreateLanguageBuilderMetadata(),
+	//}
 	return buildpackMetadata
 }
 
