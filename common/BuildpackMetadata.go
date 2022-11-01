@@ -13,21 +13,7 @@ const (
 )
 
 type BuildPackMetadata struct {
-	Builders        []*Builder
 	LanguageBuilder []*LanguageBuilder
-}
-
-type Builder struct {
-	Id              string
-	ConfigLink      string
-	EntryPointParam string
-	LanguageSupport []*LanguageSupport
-}
-
-type LanguageSupport struct {
-	Language            Language
-	BuilderLangEnvParam string
-	Versions            []string
 }
 
 type BuilderLanguageMetadata struct {

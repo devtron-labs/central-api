@@ -70,58 +70,7 @@ func setupDockerfileTemplateMetadata() *common.DockerfileTemplateMetadata {
 }
 
 func setupBuildpackMetadata() *common.BuildPackMetadata {
-
-	var builders []*common.Builder
-
-	builders = append(builders, &common.Builder{
-		Id: "gcr.io/buildpacks/builder:v1",
-		LanguageSupport: []*common.LanguageSupport{
-			{Language: common.JAVA, BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION", Versions: []string{"8", "11"}},
-			{Language: common.NODE, BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION", Versions: []string{"16.x", "14.x"}},
-			{Language: common.DOTNET, BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION", Versions: []string{"16.x", "14.x"}},
-			{Language: common.GO, BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION", Versions: []string{"16.x", "14.x"}},
-			{Language: common.RUBY, BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION", Versions: []string{"16.x", "14.x"}},
-			{Language: common.PYTHON, BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION", Versions: []string{"16.x", "14.x"}},
-			{Language: common.PHP, BuilderLangEnvParam: "GOOGLE_RUNTIME_VERSION", Versions: []string{"16.x", "14.x"}},
-		},
-	})
-	builders = append(builders, &common.Builder{
-		Id: "paketobuildpacks/builder:full",
-		LanguageSupport: []*common.LanguageSupport{
-			{Language: common.JAVA, BuilderLangEnvParam: "BP_JVM_VERSION", Versions: []string{"8", "11"}}, {Language: common.NODE, BuilderLangEnvParam: "BP_NODE_VERSION", Versions: []string{"16.x", "14.x"}},
-			{Language: common.PYTHON, BuilderLangEnvParam: "BP_CPYTHON_VERSION", Versions: []string{"3.6.*"}}, {Language: common.RUBY, BuilderLangEnvParam: "BP_MRI_VERSION", Versions: []string{"2.7.1"}},
-			{Language: common.DOTNET, BuilderLangEnvParam: "BP_DOTNET_FRAMEWORK_VERSION", Versions: []string{"5.0.4"}}, {Language: common.GO, BuilderLangEnvParam: "BP_GO_VERSION", Versions: []string{"1.19", "1.19"}},
-		},
-	})
-	builders = append(builders, &common.Builder{
-		Id: "paketobuildpacks/builder:base",
-		LanguageSupport: []*common.LanguageSupport{
-			{Language: common.JAVA, BuilderLangEnvParam: "BP_JVM_VERSION", Versions: []string{"8", "11"}}, {Language: common.NODE, BuilderLangEnvParam: "BP_NODE_VERSION", Versions: []string{"16.x", "14.x"}},
-			{Language: common.PYTHON, BuilderLangEnvParam: "BP_CPYTHON_VERSION", Versions: []string{"3.6.*"}}, {Language: common.RUBY, BuilderLangEnvParam: "BP_MRI_VERSION", Versions: []string{"2.7.1"}},
-			{Language: common.DOTNET, BuilderLangEnvParam: "BP_DOTNET_FRAMEWORK_VERSION", Versions: []string{"5.0.4"}}, {Language: common.GO, BuilderLangEnvParam: "BP_GO_VERSION", Versions: []string{"1.19", "1.19"}},
-		},
-	})
-	builders = append(builders, &common.Builder{
-		Id: "paketobuildpacks/builder:tiny",
-		LanguageSupport: []*common.LanguageSupport{
-			{Language: common.JAVA, BuilderLangEnvParam: "BP_JVM_VERSION", Versions: []string{"8", "11"}}, {Language: common.GO, BuilderLangEnvParam: "BP_GO_VERSION", Versions: []string{"1.18", "1.19"}},
-		},
-	})
-	herokuLanguageSupport := []*common.LanguageSupport{
-		{Language: common.JAVA, BuilderLangEnvParam: "", Versions: []string{"8", "11"}}, {Language: common.NODE, BuilderLangEnvParam: "", Versions: []string{"16.x", "14.x"}},
-		{Language: common.RUBY, BuilderLangEnvParam: "", Versions: []string{"16.x", "14.x"}}, {Language: common.PYTHON, BuilderLangEnvParam: "", Versions: []string{"16.x", "14.x"}},
-		{Language: common.PHP, BuilderLangEnvParam: "", Versions: []string{"16.x", "14.x"}}, {Language: common.GO, BuilderLangEnvParam: "GOVERSION", Versions: []string{"16.x", "14.x"}},
-	}
-	builders = append(builders, &common.Builder{
-		Id:              "heroku/buildpacks:18",
-		LanguageSupport: herokuLanguageSupport,
-	})
-	builders = append(builders, &common.Builder{
-		Id:              "heroku/buildpacks:20",
-		LanguageSupport: herokuLanguageSupport,
-	})
 	buildpackMetadata := &common.BuildPackMetadata{
-		Builders:        builders,
 		LanguageBuilder: CreateLanguageBuilderMetadata(),
 	}
 	return buildpackMetadata
