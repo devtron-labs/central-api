@@ -38,6 +38,8 @@ func (r MuxRouter) Init() {
 	r.Router.Path("/release/notes").HandlerFunc(r.restHandler.GetReleases).Methods("GET")
 	r.Router.Path("/release/webhook").HandlerFunc(r.restHandler.ReleaseWebhookHandler).Methods("POST")
 	r.Router.Path("/modules").HandlerFunc(r.restHandler.GetModules).Methods("GET")
+	r.Router.Path("/dockerfileTemplate").HandlerFunc(r.restHandler.GetDockerfileTemplateMetadata).Methods("GET")
+	r.Router.Path("/buildpackMetadata").HandlerFunc(r.restHandler.GetBuildpackMetadata).Methods("GET")
 	r.Router.Path("/v2/modules").HandlerFunc(r.restHandler.GetModulesV2).Methods("GET")
 	r.Router.Path("/module").
 		Queries("name", "{name}").

@@ -1,0 +1,165 @@
+{
+  "LanguageBuilder": [
+    {
+      "Language": "Java",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-Java.png",
+      "Versions": [
+        "8",
+        "11"
+      ],
+      "BuilderLanguageMetadata": [
+        {
+          "Id": "gcr.io/buildpacks/builder:v1",
+          "BuilderLangEnvParam": "GOOGLE_RUNTIME_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:full",
+          "BuilderLangEnvParam": "BP_JVM_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:base",
+          "BuilderLangEnvParam": "BP_JVM_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:tiny",
+          "BuilderLangEnvParam": "BP_JVM_VERSION"
+        },
+        {
+          "Id": "heroku/buildpacks:20",
+          "BuilderLangEnvParam": "DEVTRON_LANG_VERSION"
+        }
+      ]
+    },
+    {
+      "Language": "Python",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-python.png",
+      "Versions": [
+        "3.7.*"
+      ],
+      "BuilderLanguageMetadata": [
+        {
+          "Id": "gcr.io/buildpacks/builder:v1",
+          "BuilderLangEnvParam": "GOOGLE_RUNTIME_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:full",
+          "BuilderLangEnvParam": "BP_CPYTHON_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:base",
+          "BuilderLangEnvParam": "BP_CPYTHON_VERSION"
+        },
+        {
+          "Id": "heroku/buildpacks:20",
+          "BuilderLangEnvParam": "DEVTRON_LANG_VERSION"
+        }
+      ]
+    },
+    {
+      "Language": "PHP",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-php.png",
+      "Versions": [
+        "7.4"
+      ],
+      "BuilderLanguageMetadata": [
+        {
+          "Id": "gcr.io/buildpacks/builder:v1",
+          "BuilderLangEnvParam": "GOOGLE_RUNTIME_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:full",
+          "BuilderLangEnvParam": "BP_PHP_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:base",
+          "BuilderLangEnvParam": "BP_PHP_VERSION"
+        },
+        {
+          "Id": "heroku/buildpacks:20",
+          "BuilderLangEnvParam": ""
+        }
+      ]
+    },
+    {
+      "Language": "Go",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-go.png",
+      "Versions": [
+        "1.18",
+        "1.19"
+      ],
+      "BuilderLanguageMetadata": [
+        {
+          "Id": "gcr.io/buildpacks/builder:v1",
+          "BuilderLangEnvParam": "GOOGLE_RUNTIME_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:full",
+          "BuilderLangEnvParam": "BP_GO_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:base",
+          "BuilderLangEnvParam": "BP_GO_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:tiny",
+          "BuilderLangEnvParam": "BP_GO_VERSION"
+        },
+        {
+          "Id": "heroku/buildpacks:20",
+          "BuilderLangEnvParam": "GOVERSION"
+        }
+      ]
+    },
+    {
+      "Language": "Ruby",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-ruby.png",
+      "Versions": [
+        "2.7"
+      ],
+      "BuilderLanguageMetadata": [
+        {
+          "Id": "gcr.io/buildpacks/builder:v1",
+          "BuilderLangEnvParam": "GOOGLE_RUNTIME_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:full",
+          "BuilderLangEnvParam": "BP_MRI_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:base",
+          "BuilderLangEnvParam": "BP_MRI_VERSION"
+        },
+        {
+          "Id": "heroku/buildpacks:20",
+          "BuilderLangEnvParam": ""
+        }
+      ]
+    },
+    {
+      "Language": "Node",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-nodejs.png",
+      "Versions": [
+        "16.x",
+        "18.x"
+      ],
+      "BuilderLanguageMetadata": [
+        {
+          "Id": "gcr.io/buildpacks/builder:v1",
+          "BuilderLangEnvParam": "GOOGLE_RUNTIME_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:full",
+          "BuilderLangEnvParam": "BP_NODE_VERSION"
+        },
+        {
+          "Id": "paketobuildpacks/builder:base",
+          "BuilderLangEnvParam": "BP_NODE_VERSION"
+        },
+        {
+          "Id": "heroku/buildpacks:20",
+          "BuilderLangEnvParam": "DEVTRON_LANG_VERSION"
+        }
+      ]
+    }
+  ]
+}

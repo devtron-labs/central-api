@@ -18,15 +18,18 @@ type RestHandler interface {
 	GetModules(w http.ResponseWriter, r *http.Request)
 	GetModulesV2(w http.ResponseWriter, r *http.Request)
 	GetModuleByName(w http.ResponseWriter, r *http.Request)
+	GetDockerfileTemplateMetadata(w http.ResponseWriter, r *http.Request)
+	GetBuildpackMetadata(w http.ResponseWriter, r *http.Request)
 }
 
 func NewRestHandlerImpl(logger *zap.SugaredLogger, releaseNoteService pkg.ReleaseNoteService,
-	webhookSecretValidator pkg.WebhookSecretValidator, client *util.GitHubClient) *RestHandlerImpl {
+	webhookSecretValidator pkg.WebhookSecretValidator, client *util.GitHubClient, ciBuildMetadataService pkg.CiBuildMetadataService) *RestHandlerImpl {
 	return &RestHandlerImpl{
 		logger:                 logger,
 		releaseNoteService:     releaseNoteService,
 		webhookSecretValidator: webhookSecretValidator,
 		client:                 client,
+		ciBuildMetadataService: ciBuildMetadataService,
 	}
 }
 
@@ -35,6 +38,7 @@ type RestHandlerImpl struct {
 	releaseNoteService     pkg.ReleaseNoteService
 	webhookSecretValidator pkg.WebhookSecretValidator
 	client                 *util.GitHubClient
+	ciBuildMetadataService pkg.CiBuildMetadataService
 }
 
 func setupResponse(w *http.ResponseWriter, req *http.Request) {
@@ -184,5 +188,20 @@ func (impl *RestHandlerImpl) GetModuleByName(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	impl.WriteJsonResp(w, nil, module, http.StatusOK)
+	return
+}
+
+func (impl *RestHandlerImpl) GetDockerfileTemplateMetadata(w http.ResponseWriter, r *http.Request) {
+	impl.logger.Debug("get all dockerfile template metadata")
+	setupResponse(&w, r)
+	dockerfileTemplateMetadata := impl.ciBuildMetadataService.GetDockerfileTemplateMetadata()
+	impl.WriteJsonResp(w, nil, dockerfileTemplateMetadata, http.StatusOK)
+	return
+}
+func (impl *RestHandlerImpl) GetBuildpackMetadata(w http.ResponseWriter, r *http.Request) {
+	impl.logger.Debug("get all buildpack metadata")
+	setupResponse(&w, r)
+	buildpackMetadata := impl.ciBuildMetadataService.GetBuildpackMetadata()
+	impl.WriteJsonResp(w, nil, buildpackMetadata, http.StatusOK)
 	return
 }

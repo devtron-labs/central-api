@@ -1,0 +1,38 @@
+{
+  "LanguageFrameworks": [
+    {
+      "Language": "Java",
+      "Framework": "Maven",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-Java.png",
+      "TemplateUrl": "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/java/Maven_Dockerfile"
+    },
+    {
+      "Language": "Java",
+      "Framework": "Gradle",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-Java.png",
+      "TemplateUrl": "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/java/Gradle_Dockerfile"
+    },
+    {
+      "Language": "Python",
+      "Framework": "Django",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-python.png",
+      "TemplateUrl": "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/django/Dockerfile"
+    },
+    {
+      "Language": "Python",
+      "Framework": "Flask",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-python.png",
+      "TemplateUrl": "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/flask/Dockerfile"
+    },
+    {
+      "Language": "Go",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-go.png",
+      "TemplateUrl": "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/go/Dockerfile"
+    },
+    {
+      "Language": "Node",
+      "LanguageIcon": "https://cdn.devtron.ai/images/ic-nodejs.png",
+      "TemplateUrl": "https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/node/Dockerfile"
+    }
+  ]
+}
