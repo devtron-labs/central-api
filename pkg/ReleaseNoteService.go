@@ -237,6 +237,13 @@ func (impl *ReleaseNoteServiceImpl) GetModulesV2() ([]*common.Module, error) {
 		Info:                          impl.moduleConfig.ModuleConfig.Info,
 		Assets:                        impl.moduleConfig.ModuleConfig.Assets,
 		DependentModules:              []int{},
+		ResourceFilter: &common.ResourceFilter{
+			GlobalFilter: &common.ResourceIdentifier{
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+		},
 	})
 	modules = append(modules, &common.Module{
 		Id:                            2,

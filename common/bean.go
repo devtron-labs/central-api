@@ -35,17 +35,22 @@ const MODULE_CICD = "cicd"
 const MODULE_Security = "security"
 
 type Module struct {
-	Id                            int                                 `json:"id"`
-	Name                          string                              `json:"name"`
-	BaseMinVersionSupported       string                              `json:"baseMinVersionSupported"`
-	IsIncludedInLegacyFullPackage bool                                `json:"isIncludedInLegacyFullPackage"`
-	Assets                        []string                            `json:"assets"`
-	Description                   string                              `json:"description"`
-	Title                         string                              `json:"title"`
-	Icon                          string                              `json:"icon"`
-	Info                          string                              `json:"info"`
-	DependentModules              []int                               `json:"dependentModules"`
-	ResourceIdentifiers           map[GroupVersionKind]ResourceFilter `json:"resourceIdentifiers"`
+	Id                            int             `json:"id"`
+	Name                          string          `json:"name"`
+	BaseMinVersionSupported       string          `json:"baseMinVersionSupported"`
+	IsIncludedInLegacyFullPackage bool            `json:"isIncludedInLegacyFullPackage"`
+	Assets                        []string        `json:"assets"`
+	Description                   string          `json:"description"`
+	Title                         string          `json:"title"`
+	Icon                          string          `json:"icon"`
+	Info                          string          `json:"info"`
+	DependentModules              []int           `json:"dependentModules"`
+	ResourceFilter                *ResourceFilter `json:"resourceFilter"`
+}
+
+type ResourceFilter struct {
+	GlobalFilter   *ResourceIdentifier                     `json:"globalFilter"`
+	GvkLevelFilter map[GroupVersionKind]ResourceIdentifier `json:"gvkLevelFilter"`
 }
 
 type GroupVersionKind struct {
@@ -54,6 +59,6 @@ type GroupVersionKind struct {
 	Kind    string `json:"kind"`
 }
 
-type ResourceFilter struct {
+type ResourceIdentifier struct {
 	Labels map[string]string `json:"labels"`
 }
