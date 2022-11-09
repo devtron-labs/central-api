@@ -54,8 +54,8 @@ type ResourceFilter struct {
 }
 
 type GvkLevelFilter struct {
-	gvk                *GroupVersionKind   `json:"gvk"`
-	resourceIdentifier *ResourceIdentifier `json:"filter"`
+	Gvk                *GroupVersionKind   `json:"gvk"`
+	ResourceIdentifier *ResourceIdentifier `json:"filter"`
 }
 
 type GroupVersionKind struct {
