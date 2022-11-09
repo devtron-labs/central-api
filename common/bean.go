@@ -45,12 +45,17 @@ type Module struct {
 	Icon                          string          `json:"icon"`
 	Info                          string          `json:"info"`
 	DependentModules              []int           `json:"dependentModules"`
-	ResourceFilter                *ResourceFilter `json:"resourceFilter"`
+	ResourceFilter                *ResourceFilter `json:"resourceFilter,omitempty"`
 }
 
 type ResourceFilter struct {
-	GlobalFilter   *ResourceIdentifier                     `json:"globalFilter"`
-	GvkLevelFilter map[GroupVersionKind]ResourceIdentifier `json:"gvkLevelFilter"`
+	GlobalFilter    *ResourceIdentifier `json:"globalFilter,omitempty"`
+	GvkLevelFilters []*GvkLevelFilter   `json:"gvkLevelFilters,omitempty"`
+}
+
+type GvkLevelFilter struct {
+	gvk                *GroupVersionKind   `json:"gvk"`
+	resourceIdentifier *ResourceIdentifier `json:"filter"`
 }
 
 type GroupVersionKind struct {
