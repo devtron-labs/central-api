@@ -237,13 +237,6 @@ func (impl *ReleaseNoteServiceImpl) GetModulesV2() ([]*common.Module, error) {
 		Info:                          impl.moduleConfig.ModuleConfig.Info,
 		Assets:                        impl.moduleConfig.ModuleConfig.Assets,
 		DependentModules:              []int{},
-		ResourceFilter: &common.ResourceFilter{
-			GlobalFilter: &common.ResourceIdentifier{
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-			},
-		},
 	})
 	modules = append(modules, &common.Module{
 		Id:                            2,
@@ -256,6 +249,13 @@ func (impl *ReleaseNoteServiceImpl) GetModulesV2() ([]*common.Module, error) {
 		Info:                          "Declarative GitOps CD for Kubernetes powered by Argo CD",
 		Assets:                        []string{"https://cdn.devtron.ai/images/img-gitops-1.png"},
 		DependentModules:              []int{1},
+		ResourceFilter: &common.ResourceFilter{
+			GlobalFilter: &common.ResourceIdentifier{
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+		},
 	})
 
 	modules = append(modules, &common.Module{
