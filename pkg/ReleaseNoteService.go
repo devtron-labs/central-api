@@ -102,7 +102,6 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 			impl.logger.Error("Can't assert, handle err")
 			return false, nil
 		}
-		impl.logger.Info(itemMap)
 		if itemMap != nil {
 			items := itemMap["releases"]
 			if items.Object != nil {
@@ -137,7 +136,6 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			impl.logger.Error("Can't assert, handle err")
 			return releaseList, nil
 		}
-		impl.logger.Info(itemMap)
 		if itemMap != nil {
 			items := itemMap["releases"]
 			if items.Object != nil {
@@ -170,6 +168,10 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			result := &common.ReleaseList{}
 			var releasesDto []*common.Release
 			for _, item := range releases {
+				if item == nil {
+					impl.logger.Warnw("error while getting release from repository", "err", err)
+					continue
+				}
 				var tagName, releaseName, body, tagLink string
 				var createdAt, publishedAt time.Time
 				if item.TagName != nil {
