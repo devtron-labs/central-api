@@ -170,13 +170,33 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			result := &common.ReleaseList{}
 			var releasesDto []*common.Release
 			for _, item := range releases {
+				var tagName, releaseName, body, tagLink string
+				var createdAt, publishedAt time.Time
+				if item.TagName != nil {
+					tagName = *item.TagName
+				}
+				if item.Name != nil {
+					releaseName = *item.Name
+				}
+				if item.Body != nil {
+					body = *item.Body
+				}
+				if item.TagName != nil {
+					tagLink = fmt.Sprintf("%s/%s", TagLink, *item.TagName)
+				}
+				if item.CreatedAt != nil {
+					createdAt = item.CreatedAt.Time
+				}
+				if item.PublishedAt != nil {
+					publishedAt = item.PublishedAt.Time
+				}
 				dto := &common.Release{
-					TagName:     *item.TagName,
-					ReleaseName: *item.Name,
-					CreatedAt:   item.CreatedAt.Time,
-					PublishedAt: item.PublishedAt.Time,
-					Body:        *item.Body,
-					TagLink:     fmt.Sprintf("%s/%s", TagLink, *item.TagName),
+					TagName:     tagName,
+					ReleaseName: releaseName,
+					CreatedAt:   createdAt,
+					PublishedAt: publishedAt,
+					Body:        body,
+					TagLink:     tagLink,
 				}
 				impl.getPrerequisiteContent(dto)
 				releasesDto = append(releasesDto, dto)
