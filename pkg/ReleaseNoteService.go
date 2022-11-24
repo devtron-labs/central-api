@@ -115,6 +115,7 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 	for _, release := range releaseList {
 		// tag is mandatory while drafting a new release
 		if release.TagName == releaseInfo.TagName {
+			release.ReleaseName = releaseInfo.ReleaseName
 			release.Body = releaseInfo.Body
 			isNew = false
 		}
