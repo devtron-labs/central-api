@@ -64,7 +64,7 @@ func (impl RestHandlerImpl) WriteJsonResp(w http.ResponseWriter, err error, resp
 	}
 	b, err := json.Marshal(response)
 	if err != nil {
-		impl.logger.Error("error in marshaling err object", err)
+		impl.logger.Errorw("error in marshaling err object", "err", err)
 		status = 500
 	}
 	w.Header().Set("Content-Type", "application/json")

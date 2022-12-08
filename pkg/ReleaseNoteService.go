@@ -102,7 +102,6 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 			impl.logger.Error("Can't assert, handle err")
 			return false, nil
 		}
-		impl.logger.Info(itemMap)
 		if itemMap != nil {
 			items := itemMap["releases"]
 			if items.Object != nil {
@@ -114,7 +113,9 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 
 	isNew := true
 	for _, release := range releaseList {
-		if release.ReleaseName == releaseInfo.ReleaseName {
+		// tag is mandatory while drafting a new release
+		if release.TagName == releaseInfo.TagName {
+			release.ReleaseName = releaseInfo.ReleaseName
 			release.Body = releaseInfo.Body
 			isNew = false
 		}
@@ -137,7 +138,6 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			impl.logger.Error("Can't assert, handle err")
 			return releaseList, nil
 		}
-		impl.logger.Info(itemMap)
 		if itemMap != nil {
 			items := itemMap["releases"]
 			if items.Object != nil {
@@ -170,13 +170,37 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			result := &common.ReleaseList{}
 			var releasesDto []*common.Release
 			for _, item := range releases {
+				if item == nil {
+					impl.logger.Warnw("error while getting release from repository", "err", err)
+					continue
+				}
+				var tagName, releaseName, body, tagLink string
+				var createdAt, publishedAt time.Time
+				if item.TagName != nil {
+					tagName = *item.TagName
+				}
+				if item.Name != nil {
+					releaseName = *item.Name
+				}
+				if item.Body != nil {
+					body = *item.Body
+				}
+				if item.TagName != nil {
+					tagLink = fmt.Sprintf("%s/%s", TagLink, *item.TagName)
+				}
+				if item.CreatedAt != nil {
+					createdAt = item.CreatedAt.Time
+				}
+				if item.PublishedAt != nil {
+					publishedAt = item.PublishedAt.Time
+				}
 				dto := &common.Release{
-					TagName:     *item.TagName,
-					ReleaseName: *item.Name,
-					CreatedAt:   item.CreatedAt.Time,
-					PublishedAt: item.PublishedAt.Time,
-					Body:        *item.Body,
-					TagLink:     fmt.Sprintf("%s/%s", TagLink, *item.TagName),
+					TagName:     tagName,
+					ReleaseName: releaseName,
+					CreatedAt:   createdAt,
+					PublishedAt: publishedAt,
+					Body:        body,
+					TagLink:     tagLink,
 				}
 				impl.getPrerequisiteContent(dto)
 				releasesDto = append(releasesDto, dto)
