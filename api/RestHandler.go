@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type RestHandler interface {
@@ -132,6 +133,15 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 			response = response[offset:]
 		}
 	}
+
+	response = append(response, &common.Release{
+		TagName:     "v0.6.8.1",
+		ReleaseName: "v0.6.8.1",
+		CreatedAt:   time.Now(),
+		PublishedAt: time.Now(),
+		Body:        "Hey this is description for v0.6.8.1",
+		TagLink:     "https://github.com/devtron-labs/devtron/releases/tag/v0.6.8.1",
+	})
 
 	impl.WriteJsonResp(w, nil, response, http.StatusOK)
 	return
