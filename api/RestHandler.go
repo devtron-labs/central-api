@@ -134,7 +134,8 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	response = append(response, &common.Release{
+	var releases []*common.Release
+	releases = append(releases, &common.Release{
 		TagName:     "v0.6.8.1",
 		ReleaseName: "v0.6.8.1",
 		CreatedAt:   time.Now(),
@@ -143,7 +144,11 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 		TagLink:     "https://github.com/devtron-labs/devtron/releases/tag/v0.6.8.1",
 	})
 
-	impl.WriteJsonResp(w, nil, response, http.StatusOK)
+	for _, respon := range response {
+		releases = append(releases, respon)
+	}
+
+	impl.WriteJsonResp(w, nil, releases, http.StatusOK)
 	return
 }
 
