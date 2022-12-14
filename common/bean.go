@@ -35,14 +35,35 @@ const MODULE_CICD = "cicd"
 const MODULE_Security = "security"
 
 type Module struct {
-	Id                            int      `json:"id"`
-	Name                          string   `json:"name"`
-	BaseMinVersionSupported       string   `json:"baseMinVersionSupported"`
-	IsIncludedInLegacyFullPackage bool     `json:"isIncludedInLegacyFullPackage"`
-	Assets                        []string `json:"assets"`
-	Description                   string   `json:"description"`
-	Title                         string   `json:"title"`
-	Icon                          string   `json:"icon"`
-	Info                          string   `json:"info"`
-	DependentModules              []int    `json:"dependentModules"`
+	Id                            int             `json:"id"`
+	Name                          string          `json:"name"`
+	BaseMinVersionSupported       string          `json:"baseMinVersionSupported"`
+	IsIncludedInLegacyFullPackage bool            `json:"isIncludedInLegacyFullPackage"`
+	Assets                        []string        `json:"assets"`
+	Description                   string          `json:"description"`
+	Title                         string          `json:"title"`
+	Icon                          string          `json:"icon"`
+	Info                          string          `json:"info"`
+	DependentModules              []int           `json:"dependentModules"`
+	ResourceFilter                *ResourceFilter `json:"resourceFilter,omitempty"`
+}
+
+type ResourceFilter struct {
+	GlobalFilter    *ResourceIdentifier `json:"globalFilter,omitempty"`
+	GvkLevelFilters []*GvkLevelFilter   `json:"gvkLevelFilters,omitempty"`
+}
+
+type GvkLevelFilter struct {
+	Gvk                *GroupVersionKind   `json:"gvk"`
+	ResourceIdentifier *ResourceIdentifier `json:"filter"`
+}
+
+type GroupVersionKind struct {
+	Group   string `json:"group"`
+	Version string `json:"version"`
+	Kind    string `json:"kind"`
+}
+
+type ResourceIdentifier struct {
+	Labels map[string]string `json:"labels"`
 }
