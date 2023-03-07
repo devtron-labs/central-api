@@ -1,14 +1,6 @@
-# cloud.google.com/go v0.100.2
-## explicit
-# github.com/antihax/optional v1.0.0
-## explicit
-# github.com/aws/aws-sdk-go v1.42.37
-## explicit
 # github.com/caarlos0/env v3.5.0+incompatible
 ## explicit
 github.com/caarlos0/env
-# github.com/coreos/clair v2.0.1-0.20171220021131-30bd568d8361+incompatible
-## explicit
 # github.com/go-pg/pg v6.15.1+incompatible
 ## explicit
 github.com/go-pg/pg
@@ -19,6 +11,8 @@ github.com/go-pg/pg/orm
 github.com/go-pg/pg/types
 # github.com/golang/protobuf v1.5.2
 github.com/golang/protobuf/proto
+# github.com/google/go-cmp v0.5.6
+## explicit
 # github.com/google/go-github v17.0.0+incompatible
 ## explicit
 github.com/google/go-github/github
@@ -37,24 +31,14 @@ github.com/jinzhu/inflection
 # github.com/juju/errors v0.0.0-20210818161939-5560c4c073ff
 ## explicit
 github.com/juju/errors
-# github.com/nats-io/nats-server/v2 v2.7.0
-## explicit
-# github.com/nats-io/nats-streaming-server v0.23.2
-## explicit
-# github.com/nats-io/nats.go v1.13.1-0.20211122170419-d7c1d78a50fc
-## explicit
-# github.com/nats-io/stan.go v0.10.2
-## explicit
 # github.com/onsi/ginkgo v1.16.5
 ## explicit
 # github.com/onsi/gomega v1.17.0
 ## explicit
-# github.com/optiopay/klar v2.4.0+incompatible
-## explicit
 # github.com/patrickmn/go-cache v2.1.0+incompatible
 ## explicit
 github.com/patrickmn/go-cache
-# github.com/sirupsen/logrus v1.8.1
+# github.com/pkg/errors v0.9.1
 ## explicit
 # go.uber.org/atomic v1.9.0
 ## explicit
@@ -71,8 +55,9 @@ go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
 # golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce
+## explicit
 golang.org/x/crypto/pbkdf2
-# golang.org/x/net v0.0.0-20220114011407-0dd24b26b47d
+# golang.org/x/net v0.7.0
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -80,11 +65,8 @@ golang.org/x/net/context/ctxhttp
 ## explicit
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
-## explicit
-# golang.org/x/text v0.3.7
-## explicit
 # google.golang.org/appengine v1.6.7
+## explicit
 google.golang.org/appengine/internal
 google.golang.org/appengine/internal/base
 google.golang.org/appengine/internal/datastore
@@ -92,11 +74,8 @@ google.golang.org/appengine/internal/log
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20220118154757-00ab72f36ad5
-## explicit
-# google.golang.org/grpc v1.43.0
-## explicit
 # google.golang.org/protobuf v1.27.1
+## explicit
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
@@ -124,8 +103,6 @@ google.golang.org/protobuf/reflect/protoregistry
 google.golang.org/protobuf/runtime/protoiface
 google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/descriptorpb
-# gopkg.in/src-d/go-git.v4 v4.13.1
-## explicit
 # mellium.im/sasl v0.2.1
 ## explicit
 mellium.im/sasl
