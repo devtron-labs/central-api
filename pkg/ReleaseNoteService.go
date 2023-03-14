@@ -3,11 +3,13 @@ package pkg
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	util "github.com/devtron-labs/central-api/client"
 	"github.com/devtron-labs/central-api/common"
+	"github.com/devtron-labs/central-api/pkg/releaseNote"
+	"github.com/go-pg/pg"
 	"github.com/google/go-github/github"
-	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	"strings"
 	"sync"
@@ -23,27 +25,27 @@ type ReleaseNoteService interface {
 }
 
 type ReleaseNoteServiceImpl struct {
-	logger       *zap.SugaredLogger
-	client       *util.GitHubClient
-	releaseCache *util.ReleaseCache
-	mutex        sync.Mutex
-	moduleConfig *util.ModuleConfig
+	logger                *zap.SugaredLogger
+	client                *util.GitHubClient
+	mutex                 sync.Mutex
+	moduleConfig          *util.ModuleConfig
+	releaseNoteRepository releaseNote.ReleaseNoteRepository
 }
 
-func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubClient, releaseCache *util.ReleaseCache,
-	moduleConfig *util.ModuleConfig) *ReleaseNoteServiceImpl {
+func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubClient,
+	moduleConfig *util.ModuleConfig, releaseNoteRepository releaseNote.ReleaseNoteRepository) (*ReleaseNoteServiceImpl, error) {
 	serviceImpl := &ReleaseNoteServiceImpl{
-		logger:       logger,
-		client:       client,
-		releaseCache: releaseCache,
-		moduleConfig: moduleConfig,
+		logger:                logger,
+		client:                client,
+		moduleConfig:          moduleConfig,
+		releaseNoteRepository: releaseNoteRepository,
 	}
 	_, err := serviceImpl.GetReleases()
 	if err != nil {
 		serviceImpl.logger.Errorw("error on app init call for releases", "err", err)
-		//ignore error for starting application
+		return nil, err
 	}
-	return serviceImpl
+	return serviceImpl, nil
 }
 
 const ActionPublished = "published"
@@ -94,21 +96,15 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 	//updating cache, fetch existing object and append new item
 	var releaseList []*common.Release
 	//releaseList = append(releaseList, releaseInfo)
-	cachedReleases := impl.releaseCache.GetReleaseCache()
-	if cachedReleases != nil {
-		itemMap, ok := cachedReleases.(map[string]cache.Item)
-		if !ok {
-			// Can't assert, handle error.
-			impl.logger.Error("Can't assert, handle err")
-			return false, nil
-		}
-		if itemMap != nil {
-			items := itemMap["releases"]
-			if items.Object != nil {
-				releases := items.Object.([]*common.Release)
-				releaseList = append(releaseList, releases...)
-			}
-		}
+
+	releaseNoteObj, err := impl.getActiveReleaseNote()
+	if err != nil {
+		impl.logger.Errorw("error in getting release notes from DB", "err", err)
+		return false, err
+	}
+	releaseNotes := releaseNoteObj.ReleaseNote
+	if len(releaseNotes) > 0 {
+		releaseList = append(releaseList, releaseNotes...)
 	}
 
 	isNew := true
@@ -125,25 +121,21 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 	}
 	impl.mutex.Lock()
 	defer impl.mutex.Unlock()
-	impl.releaseCache.UpdateReleaseCache(releaseList)
+	impl.updateReleaseNotesInDb(releaseList, true)
 	return true, nil
 }
 
 func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 	var releaseList []*common.Release
-	cachedReleases := impl.releaseCache.GetReleaseCache()
-	if cachedReleases != nil {
-		itemMap, ok := cachedReleases.(map[string]cache.Item)
-		if !ok {
-			impl.logger.Error("Can't assert, handle err")
-			return releaseList, nil
-		}
-		if itemMap != nil {
-			items := itemMap["releases"]
-			if items.Object != nil {
-				releases := items.Object.([]*common.Release)
-				releaseList = append(releaseList, releases...)
-			}
+	releaseNoteObj, err := impl.getActiveReleaseNote()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting release notes from DB", "err", err)
+		return releaseList, err
+	}
+	if releaseNoteObj != nil {
+		releaseNotes := releaseNoteObj.ReleaseNote
+		if len(releaseNotes) > 0 {
+			releaseList = append(releaseList, releaseNotes...)
 		}
 	}
 
@@ -209,7 +201,7 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			releaseList = releasesDto
 			impl.mutex.Lock()
 			defer impl.mutex.Unlock()
-			impl.releaseCache.UpdateReleaseCache(releaseList)
+			impl.updateReleaseNotesInDb(releaseList, false)
 		}
 		if !operationComplete {
 			return releaseList, fmt.Errorf("failed operation on fetching releases from github, attempted 3 times")
@@ -343,4 +335,63 @@ func (impl *ReleaseNoteServiceImpl) GetModuleByName(name string) (*common.Module
 		}
 	}
 	return module, nil
+}
+
+func (impl *ReleaseNoteServiceImpl) getActiveReleaseNote() (*releaseNote.ReleaseNote, error) {
+	releaseNoteObj, err := impl.releaseNoteRepository.FindActive()
+	if err != nil {
+		impl.logger.Errorw("error in getting release notes from DB", "err", err)
+		return nil, err
+	}
+	if releaseNoteObj == nil || releaseNoteObj.Id == 0 {
+		return nil, errors.New("release notes not found")
+	}
+	return releaseNoteObj, nil
+}
+
+func (impl *ReleaseNoteServiceImpl) updateReleaseNotesInDb(releaseList []*common.Release, webhookResult bool) error {
+	// initiate tx
+	dbConnection := impl.releaseNoteRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// rollback tx on error.
+	defer tx.Rollback()
+
+	// STEP-1 - mark inactive in DB
+	releaseNoteObj, err := impl.getActiveReleaseNote()
+	if webhookResult {
+		if err != nil {
+			impl.logger.Errorw("error in getting release notes from DB", "err", err)
+			return err
+		}
+		if releaseNoteObj == nil || releaseNoteObj.Id == 0 {
+			return errors.New("release notes not found")
+		}
+	}
+
+	// mark inactive
+	if releaseNoteObj != nil && releaseNoteObj.Id > 0 {
+		releaseNoteObj.UpdatedOn = time.Now()
+		releaseNoteObj.IsActive = false
+		err = impl.releaseNoteRepository.Update(releaseNoteObj, tx)
+		if err != nil {
+			return err
+		}
+	}
+
+	// STEP-2 insert active in DB
+	releaseNote := &releaseNote.ReleaseNote{
+		ReleaseNote: releaseList,
+		IsActive:    true,
+		CreatedOn:   time.Now(),
+	}
+	err = impl.releaseNoteRepository.Save(releaseNote, tx)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	return err
 }

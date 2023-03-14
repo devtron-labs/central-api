@@ -8,16 +8,20 @@ import (
 	util "github.com/devtron-labs/central-api/client"
 	"github.com/devtron-labs/central-api/internal/logger"
 	"github.com/devtron-labs/central-api/pkg"
+	"github.com/devtron-labs/central-api/pkg/releaseNote"
+	"github.com/devtron-labs/central-api/pkg/sql"
 	"github.com/google/wire"
 )
 
 func InitializeApp() (*App, error) {
 	wire.Build(
+		logger.NewSugardLogger,
+		sql.PgSqlWireSet,
+		releaseNote.NewReleaseNoteRepositoryImpl,
+		wire.Bind(new(releaseNote.ReleaseNoteRepository), new(*releaseNote.ReleaseNoteRepositoryImpl)),
 		NewApp,
 		api.NewMuxRouter,
-		logger.NewSugardLogger,
 		util.NewGitHubClient,
-		util.NewReleaseCache,
 		//logger.NewHttpClient,
 		api.NewRestHandlerImpl,
 		wire.Bind(new(api.RestHandler), new(*api.RestHandlerImpl)),
