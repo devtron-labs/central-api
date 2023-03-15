@@ -3,7 +3,6 @@ package pkg
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	util "github.com/devtron-labs/central-api/client"
 	"github.com/devtron-labs/central-api/common"
@@ -343,9 +342,6 @@ func (impl *ReleaseNoteServiceImpl) getActiveReleaseNote() (*releaseNote.Release
 		impl.logger.Errorw("error in getting release notes from DB", "err", err)
 		return nil, err
 	}
-	if releaseNoteObj == nil || releaseNoteObj.Id == 0 {
-		return nil, errors.New("release notes not found")
-	}
 	return releaseNoteObj, nil
 }
 
@@ -361,15 +357,15 @@ func (impl *ReleaseNoteServiceImpl) updateReleaseNotesInDb(releaseList []*common
 
 	// STEP-1 - mark inactive in DB
 	releaseNoteObj, err := impl.getActiveReleaseNote()
-	if webhookResult {
-		if err != nil {
+	if err != nil {
+		if err == pg.ErrNoRows && !webhookResult {
+			impl.logger.Warn("Ignoring error of no result found of active release note")
+		} else {
 			impl.logger.Errorw("error in getting release notes from DB", "err", err)
 			return err
 		}
-		if releaseNoteObj == nil || releaseNoteObj.Id == 0 {
-			return errors.New("release notes not found")
-		}
 	}
+	//}
 
 	// mark inactive
 	if releaseNoteObj != nil && releaseNoteObj.Id > 0 {
