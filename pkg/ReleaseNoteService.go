@@ -365,7 +365,6 @@ func (impl *ReleaseNoteServiceImpl) updateReleaseNotesInDb(releaseList []*common
 			return err
 		}
 	}
-	//}
 
 	// mark inactive
 	if releaseNoteObj != nil && releaseNoteObj.Id > 0 {
