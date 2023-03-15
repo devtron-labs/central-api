@@ -17,7 +17,10 @@ import (
 // Injectors from Wire.go:
 
 func InitializeApp() (*App, error) {
-	sugaredLogger := logger.NewSugardLogger()
+	sugaredLogger, err := logger.NewSugardLogger()
+	if err != nil {
+		return nil, err
+	}
 	gitHubClient, err := util.NewGitHubClient(sugaredLogger)
 	if err != nil {
 		return nil, err
