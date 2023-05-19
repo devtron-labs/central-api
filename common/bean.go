@@ -46,6 +46,7 @@ type Module struct {
 	Info                          string          `json:"info"`
 	DependentModules              []int           `json:"dependentModules"`
 	ResourceFilter                *ResourceFilter `json:"resourceFilter,omitempty"`
+	ModuleType                    string          `json:"moduleType"`
 }
 
 type ResourceFilter struct {
