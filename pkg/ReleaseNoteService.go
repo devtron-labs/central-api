@@ -318,6 +318,7 @@ func (impl *ReleaseNoteServiceImpl) GetModulesV2() ([]*common.Module, error) {
 				},
 			},
 		},
+		ModuleType: "monitoring",
 	})
 	modules = append(modules, &common.Module{
 		Id:                            6,
