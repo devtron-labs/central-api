@@ -60,8 +60,8 @@ type GitConfig struct {
 
 type GitHubConfig struct {
 	GitHubHost  string `env:"GITHUB_HOST" envDefault:"https://github.com"`
-	GitHubOrg   string `env:"GITHUB_ORG" envDefault:""`
-	GitHubToken string `env:"GITHUB_TOKEN" envDefault:""`
+	GitHubOrg   string `env:"GITHUB_ORG" envDefault:"Shivam-nagar23"`
+	GitHubToken string `env:"GITHUB_TOKEN" envDefault:"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"`
 	GitHubRepo  string `env:"GITHUB_REPO" envDefault:"devtron"`
 
 	GitHubWebhookSecret   string `env:"GITHUB_WEBHOOK_SECRET" envDefault:""`

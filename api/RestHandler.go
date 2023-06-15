@@ -143,15 +143,16 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 	vars := mux.Vars(r)
 	secretFromRequest := vars["secret"]
 	impl.logger.Debugw("secret found in request", "secret", secretFromRequest)
-
+	impl.logger.Infow("secret of webhook", secretFromRequest)
 	// validate signature
 	requestBodyBytes, err := ioutil.ReadAll(r.Body)
+	impl.logger.Infow("requestBodyBytes of webhook", "requestBodyBytes", requestBodyBytes)
 	if err != nil {
 		impl.logger.Errorw("Cannot read the request body:", "err", err)
 		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
+	impl.logger.Infow("requestBodyBytes of webhook", "requestBodyBytes", requestBodyBytes)
 	isValidSig := impl.webhookSecretValidator.ValidateSecret(r, requestBodyBytes)
 	impl.logger.Debugw("Secret validation result ", "isValidSig", isValidSig)
 	if !isValidSig {
