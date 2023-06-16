@@ -7,9 +7,11 @@ import (
 	util "github.com/devtron-labs/central-api/client"
 	"github.com/devtron-labs/central-api/common"
 	"github.com/devtron-labs/central-api/pkg/releaseNote"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/go-pg/pg"
 	"github.com/google/go-github/github"
 	"go.uber.org/zap"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +23,7 @@ type ReleaseNoteService interface {
 	UpdateReleases(requestBodyBytes []byte) (bool, error)
 	GetModulesV2() ([]*common.Module, error)
 	GetModuleByName(name string) (*common.Module, error)
+	GetReleasesOnInitialisation()
 }
 
 type ReleaseNoteServiceImpl struct {
@@ -29,21 +32,27 @@ type ReleaseNoteServiceImpl struct {
 	mutex                 sync.Mutex
 	moduleConfig          *util.ModuleConfig
 	releaseNoteRepository releaseNote.ReleaseNoteRepository
+	blobConfig            *util.BlobConfig
 }
 
 func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubClient,
-	moduleConfig *util.ModuleConfig, releaseNoteRepository releaseNote.ReleaseNoteRepository) (*ReleaseNoteServiceImpl, error) {
+	moduleConfig *util.ModuleConfig, releaseNoteRepository releaseNote.ReleaseNoteRepository, blobConfig *util.BlobConfig) (*ReleaseNoteServiceImpl, error) {
 	serviceImpl := &ReleaseNoteServiceImpl{
 		logger:                logger,
 		client:                client,
 		moduleConfig:          moduleConfig,
 		releaseNoteRepository: releaseNoteRepository,
+		blobConfig:            blobConfig,
 	}
-	_, err := serviceImpl.GetReleases()
-	if err != nil {
-		serviceImpl.logger.Errorw("error on app init call for releases", "err", err)
-		return nil, err
-	}
+
+	//_, err := serviceImpl.GetReleases()
+	//if err != nil {
+	//	serviceImpl.logger.Errorw("error on app init call for releases", "err", err)
+	//	return nil, err
+	//}
+	// Async Call for getting releases from Github
+	serviceImpl.logger.Infow("getting release from github")
+	serviceImpl.GetReleasesOnInitialisation()
 	return serviceImpl, nil
 }
 
@@ -53,6 +62,11 @@ const EventTypeRelease = "release"
 const TimeFormatLayout = "2006-01-02T15:04:05Z"
 const TagLink = "https://github.com/devtron-labs/devtron/releases/tag"
 const PrerequisitesMatcher = "<!--upgrade-prerequisites-required-->"
+const CACHE_KEY = "latest"
+const BLOB_LATEST_RELEASE_FILE_NAME = "/tmp/latest.txt" // TODO:Have to change it to "/latest.txt"
+const TEMP = "latest.txt"                               // TODO:Will Remove this before merging
+
+var releaseCache = make(map[string][]*common.Release)
 
 func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (bool, error) {
 	data := make(map[string]interface{})
@@ -94,14 +108,19 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 
 	//updating cache, fetch existing object and append new item
 	var releaseList []*common.Release
+	var releaseNotes []*common.Release
+	if impl.blobConfig.BlobConfig.CloudConfigured {
+		releaseNotes = releaseCache[CACHE_KEY]
+	} else {
+		releaseNoteObj, err := impl.getActiveReleaseNote()
+		if err != nil {
+			impl.logger.Errorw("error in getting release notes from DB", "err", err)
+			return false, err
+		}
+		releaseNotes = releaseNoteObj.ReleaseNote
+	}
 	//releaseList = append(releaseList, releaseInfo)
 
-	releaseNoteObj, err := impl.getActiveReleaseNote()
-	if err != nil {
-		impl.logger.Errorw("error in getting release notes from DB", "err", err)
-		return false, err
-	}
-	releaseNotes := releaseNoteObj.ReleaseNote
 	if len(releaseNotes) > 0 {
 		releaseList = append(releaseList, releaseNotes...)
 	}
@@ -118,14 +137,175 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 	if isNew {
 		releaseList = append([]*common.Release{releaseInfo}, releaseList...)
 	}
-	impl.mutex.Lock()
-	defer impl.mutex.Unlock()
-	impl.updateReleaseNotesInDb(releaseList, true)
-	return true, nil
+	if impl.blobConfig.BlobConfig.CloudConfigured {
+		releaseCache[CACHE_KEY] = releaseList
+		artifactUploaded := false
+		blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
+		err = impl.createFileAndUpdateDataForBlob(releaseInfo.TagName)
+		if err != nil {
+			return artifactUploaded, err
+		}
+		request := impl.createBlobStorageRequest(impl.blobConfig.BlobConfig.BlobStorageType, BLOB_LATEST_RELEASE_FILE_NAME, TEMP)
+		err = blobStorageService.UploadToBlobWithSession(request)
+		if err != nil {
+			return artifactUploaded, err
+		}
+		artifactUploaded = true
+		return artifactUploaded, err
+
+	} else {
+		impl.mutex.Lock()
+		defer impl.mutex.Unlock()
+		impl.updateReleaseNotesInDb(releaseList, true)
+		return true, nil
+	}
+	return true, err
+}
+
+func (impl *ReleaseNoteServiceImpl) createFileAndUpdateDataForBlob(tagName string) error {
+	file, err := os.Create("/" + BLOB_LATEST_RELEASE_FILE_NAME)
+	defer file.Close()
+	if err != nil {
+		impl.logger.Errorw("error in creating file", "err", err)
+		return err
+	}
+	data := []byte(tagName)
+	_, err = file.Write(data)
+
+	if err != nil {
+		impl.logger.Errorw("error in writing file", "err", err)
+		return err
+	}
+	return err
+}
+
+func (impl *ReleaseNoteServiceImpl) GetReleasesFromGithub() ([]*common.Release, bool) {
+	operationComplete := false
+	var releasesDto []*common.Release
+	releases, _, err := impl.client.GitHubClient.Repositories.ListReleases(context.Background(), impl.client.GitHubConfig.GitHubOrg, impl.client.GitHubConfig.GitHubRepo, &github.ListOptions{})
+	if err != nil {
+		responseErr, ok := err.(*github.ErrorResponse)
+		if !ok || responseErr.Response.StatusCode != 404 {
+			impl.logger.Errorw("error in fetching releases from github", "err", err, "config", "config")
+			//todo - any specific message
+			return releasesDto, operationComplete
+		} else {
+			impl.logger.Errorw("error in fetching releases from github", "err", err)
+			return releasesDto, operationComplete
+		}
+	}
+	if err == nil {
+		operationComplete = true
+	}
+
+	for _, item := range releases {
+		if item == nil {
+			impl.logger.Warnw("error while getting release from repository", "err", err)
+			continue
+		}
+		var tagName, releaseName, body, tagLink string
+		var createdAt, publishedAt time.Time
+		if item.TagName != nil {
+			tagName = *item.TagName
+		}
+		if item.Name != nil {
+			releaseName = *item.Name
+		}
+		if item.Body != nil {
+			body = *item.Body
+		}
+		if item.TagName != nil {
+			tagLink = fmt.Sprintf("%s/%s", TagLink, *item.TagName)
+		}
+		if item.CreatedAt != nil {
+			createdAt = item.CreatedAt.Time
+		}
+		if item.PublishedAt != nil {
+			publishedAt = item.PublishedAt.Time
+		}
+		dto := &common.Release{
+			TagName:     tagName,
+			ReleaseName: releaseName,
+			CreatedAt:   createdAt,
+			PublishedAt: publishedAt,
+			Body:        body,
+			TagLink:     tagLink,
+		}
+		impl.getPrerequisiteContent(dto)
+		releasesDto = append(releasesDto, dto)
+	}
+
+	return releasesDto, operationComplete
 }
 
 func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 	var releaseList []*common.Release
+	// Removing Postgres dependancy if cloud is configured
+	if impl.blobConfig.BlobConfig.CloudConfigured {
+		// Getting from blob with latest tagName
+		blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
+		request := impl.createBlobStorageRequest(impl.blobConfig.BlobConfig.BlobStorageType, TEMP, BLOB_LATEST_RELEASE_FILE_NAME)
+		status, _, err := blobStorageService.Get(request)
+		if !status {
+			impl.logger.Errorw("error in downloading file from blob", "err", err, "request", request)
+			return releaseList, err
+		} else if err != nil {
+			impl.logger.Errorw("error in getting file from blob", "err", err)
+			return releaseList, err
+		}
+		// Reading File Downloaded from Blob Storage
+		content, err := os.ReadFile("/" + BLOB_LATEST_RELEASE_FILE_NAME)
+		if err != nil {
+			impl.logger.Errorw("error in reading file downloaded from s3")
+			return releaseList, err
+		}
+		latestTagFromBlob := string(content)
+		latestTagFromBlob = strings.ReplaceAll(latestTagFromBlob, "\n", "")
+
+		var tagNameFromCache string
+		if len(releaseCache) > 0 {
+			tagNameFromCache = releaseCache[CACHE_KEY][0].TagName
+		}
+		// if latest release tag is same with cache, return from cache
+		if len(releaseCache) > 0 && tagNameFromCache == latestTagFromBlob {
+			return releaseCache[CACHE_KEY], nil
+		} else if len(releaseCache) > 0 && tagNameFromCache != latestTagFromBlob {
+			// If tagName differ get it from github and update cache and upload to blob
+			operationComplete := false
+			retryCount := 0
+			for !operationComplete && retryCount < 3 {
+				retryCount = retryCount + 1
+				releasesDto, releaseStatus := impl.GetReleasesFromGithub()
+				if !releaseStatus {
+					continue
+				}
+				operationComplete = releaseStatus
+				result := &common.ReleaseList{}
+				result.Releases = releasesDto
+				releaseList = releasesDto
+				// Updating Cache and Updating tagName on blob
+				if len(releasesDto) > 0 {
+					releaseCache[CACHE_KEY] = releasesDto
+					tagNameToUpdateOnBlob := releasesDto[0].TagName
+					err = impl.createFileAndUpdateDataForBlob(tagNameToUpdateOnBlob)
+					if err != nil {
+						return releaseList, err
+					}
+					request = impl.createBlobStorageRequest(impl.blobConfig.BlobConfig.BlobStorageType, BLOB_LATEST_RELEASE_FILE_NAME, TEMP)
+					err = blobStorageService.UploadToBlobWithSession(request)
+					if err != nil {
+						return releaseList, err
+					}
+
+				}
+			}
+			if !operationComplete {
+				return releaseList, fmt.Errorf("failed operation on fetching releases from github, attempted 3 times")
+			}
+			return releaseList, nil
+		}
+		return releaseList, err
+	}
 	releaseNoteObj, err := impl.getActiveReleaseNote()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting release notes from DB", "err", err)
@@ -403,4 +583,74 @@ func (impl *ReleaseNoteServiceImpl) updateReleaseNotesInDb(releaseList []*common
 
 	err = tx.Commit()
 	return err
+}
+
+func (impl *ReleaseNoteServiceImpl) GetReleasesOnInitialisation() {
+	// Getting releases from github on Initialisation(will try 3 times if failed)
+	go func() {
+		operationComplete := false
+		retryCount := 0
+		for !operationComplete && retryCount < 3 {
+			retryCount = retryCount + 1
+			releasesDto, status := impl.GetReleasesFromGithub()
+			if !status {
+				impl.logger.Errorw("error in fetching releases from github")
+				continue
+			}
+			operationComplete = status
+			if len(releasesDto) > 0 {
+				releaseCache[CACHE_KEY] = releasesDto
+			}
+		}
+		if !operationComplete {
+			impl.logger.Errorw("error in getting releases from github on initialisation", "err", fmt.Errorf("failed operation on fetching releases from github, attempted 3 times"))
+		}
+
+	}()
+}
+
+func (impl *ReleaseNoteServiceImpl) createBlobStorageRequest(cloudProvider blob_storage.BlobStorageType, sourceKey string, destinationKey string) *blob_storage.BlobStorageRequest {
+	request := &blob_storage.BlobStorageRequest{
+		StorageType:    cloudProvider,
+		SourceKey:      sourceKey,
+		DestinationKey: destinationKey,
+	}
+	switch impl.blobConfig.BlobConfig.BlobStorageType {
+	case blob_storage.BLOB_STORAGE_S3:
+		{
+			var awsS3BaseConfig *blob_storage.AwsS3BaseConfig
+
+			awsS3BaseConfig = &blob_storage.AwsS3BaseConfig{
+				AccessKey:         impl.blobConfig.BlobConfig.S3AccessKey,
+				Passkey:           impl.blobConfig.BlobConfig.S3Passkey,
+				EndpointUrl:       impl.blobConfig.BlobConfig.S3EndpointUrl,
+				IsInSecure:        impl.blobConfig.BlobConfig.S3IsInSecure,
+				BucketName:        impl.blobConfig.BlobConfig.S3BucketName,
+				Region:            impl.blobConfig.BlobConfig.S3Region,
+				VersioningEnabled: impl.blobConfig.BlobConfig.S3VersioningEnabled,
+			}
+			request.AwsS3BaseConfig = awsS3BaseConfig
+
+		}
+	case blob_storage.BLOB_STORAGE_AZURE:
+		{
+			azureBlobBaseConfig := &blob_storage.AzureBlobBaseConfig{
+				AccountKey:        impl.blobConfig.BlobConfig.AzureAccountKey,
+				AccountName:       impl.blobConfig.BlobConfig.AzureAccountName,
+				Enabled:           impl.blobConfig.BlobConfig.AzureEnabled,
+				BlobContainerName: impl.blobConfig.BlobConfig.AzureBlobContainerName,
+			}
+			request.AzureBlobBaseConfig = azureBlobBaseConfig
+
+		}
+	case blob_storage.BLOB_STORAGE_GCP:
+		{
+			gcpBlobBaseConfig := &blob_storage.GcpBlobBaseConfig{
+				CredentialFileJsonData: impl.blobConfig.BlobConfig.GcpCredentialFileJsonData,
+				BucketName:             impl.blobConfig.BlobConfig.GcpBucketName,
+			}
+			request.GcpBlobBaseConfig = gcpBlobBaseConfig
+		}
+	}
+	return request
 }

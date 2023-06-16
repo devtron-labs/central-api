@@ -30,6 +30,7 @@ func InitializeApp() (*App, error) {
 		pkg.NewWebhookSecretValidatorImpl,
 		wire.Bind(new(pkg.WebhookSecretValidator), new(*pkg.WebhookSecretValidatorImpl)),
 		util.NewModuleConfig,
+		util.NewBlobConfig,
 
 		pkg.NewCiBuildMetadataServiceImpl,
 		wire.Bind(new(pkg.CiBuildMetadataService), new(*pkg.CiBuildMetadataServiceImpl)),
