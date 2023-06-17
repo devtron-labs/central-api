@@ -32,11 +32,11 @@ type ReleaseNoteServiceImpl struct {
 	mutex                 sync.Mutex
 	moduleConfig          *util.ModuleConfig
 	releaseNoteRepository releaseNote.ReleaseNoteRepository
-	blobConfig            *util.BlobConfig
+	blobConfig            *util.BlobConfigVariables
 }
 
 func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubClient,
-	moduleConfig *util.ModuleConfig, releaseNoteRepository releaseNote.ReleaseNoteRepository, blobConfig *util.BlobConfig) (*ReleaseNoteServiceImpl, error) {
+	moduleConfig *util.ModuleConfig, releaseNoteRepository releaseNote.ReleaseNoteRepository, blobConfig *util.BlobConfigVariables) (*ReleaseNoteServiceImpl, error) {
 	serviceImpl := &ReleaseNoteServiceImpl{
 		logger:                logger,
 		client:                client,
@@ -109,7 +109,7 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 	//updating cache, fetch existing object and append new item
 	var releaseList []*common.Release
 	var releaseNotes []*common.Release
-	if impl.blobConfig.BlobConfig.CloudConfigured {
+	if impl.blobConfig.CloudConfigured {
 		releaseNotes = releaseCache[CACHE_KEY]
 	} else {
 		releaseNoteObj, err := impl.getActiveReleaseNote()
@@ -137,7 +137,7 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 	if isNew {
 		releaseList = append([]*common.Release{releaseInfo}, releaseList...)
 	}
-	if impl.blobConfig.BlobConfig.CloudConfigured {
+	if impl.blobConfig.CloudConfigured {
 		releaseCache[CACHE_KEY] = releaseList
 		artifactUploaded := false
 		blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
@@ -145,7 +145,7 @@ func (impl *ReleaseNoteServiceImpl) UpdateReleases(requestBodyBytes []byte) (boo
 		if err != nil {
 			return artifactUploaded, err
 		}
-		request := impl.createBlobStorageRequest(impl.blobConfig.BlobConfig.BlobStorageType, BLOB_LATEST_RELEASE_FILE_NAME, TEMP)
+		request := impl.createBlobStorageRequest(impl.blobConfig.BlobStorageType, BLOB_LATEST_RELEASE_FILE_NAME, TEMP)
 		err = blobStorageService.UploadToBlobWithSession(request)
 		if err != nil {
 			return artifactUploaded, err
@@ -241,10 +241,10 @@ func (impl *ReleaseNoteServiceImpl) GetReleasesFromGithub() ([]*common.Release, 
 func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 	var releaseList []*common.Release
 	// Removing Postgres dependancy if cloud is configured
-	if impl.blobConfig.BlobConfig.CloudConfigured {
+	if impl.blobConfig.CloudConfigured {
 		// Getting from blob with latest tagName
 		blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
-		request := impl.createBlobStorageRequest(impl.blobConfig.BlobConfig.BlobStorageType, TEMP, BLOB_LATEST_RELEASE_FILE_NAME)
+		request := impl.createBlobStorageRequest(impl.blobConfig.BlobStorageType, TEMP, BLOB_LATEST_RELEASE_FILE_NAME)
 		status, _, err := blobStorageService.Get(request)
 		if !status {
 			impl.logger.Errorw("error in downloading file from blob", "err", err, "request", request)
@@ -267,9 +267,9 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 			tagNameFromCache = releaseCache[CACHE_KEY][0].TagName
 		}
 		// if latest release tag is same with cache, return from cache
-		if len(releaseCache) > 0 && tagNameFromCache == latestTagFromBlob {
+		if tagNameFromCache == latestTagFromBlob {
 			return releaseCache[CACHE_KEY], nil
-		} else if len(releaseCache) > 0 && tagNameFromCache != latestTagFromBlob {
+		} else if tagNameFromCache != latestTagFromBlob {
 			// If tagName differ get it from github and update cache and upload to blob
 			operationComplete := false
 			retryCount := 0
@@ -291,7 +291,7 @@ func (impl *ReleaseNoteServiceImpl) GetReleases() ([]*common.Release, error) {
 					if err != nil {
 						return releaseList, err
 					}
-					request = impl.createBlobStorageRequest(impl.blobConfig.BlobConfig.BlobStorageType, BLOB_LATEST_RELEASE_FILE_NAME, TEMP)
+					request = impl.createBlobStorageRequest(impl.blobConfig.BlobStorageType, BLOB_LATEST_RELEASE_FILE_NAME, TEMP)
 					err = blobStorageService.UploadToBlobWithSession(request)
 					if err != nil {
 						return releaseList, err
@@ -615,19 +615,19 @@ func (impl *ReleaseNoteServiceImpl) createBlobStorageRequest(cloudProvider blob_
 		SourceKey:      sourceKey,
 		DestinationKey: destinationKey,
 	}
-	switch impl.blobConfig.BlobConfig.BlobStorageType {
+	switch impl.blobConfig.BlobStorageType {
 	case blob_storage.BLOB_STORAGE_S3:
 		{
 			var awsS3BaseConfig *blob_storage.AwsS3BaseConfig
 
 			awsS3BaseConfig = &blob_storage.AwsS3BaseConfig{
-				AccessKey:         impl.blobConfig.BlobConfig.S3AccessKey,
-				Passkey:           impl.blobConfig.BlobConfig.S3Passkey,
-				EndpointUrl:       impl.blobConfig.BlobConfig.S3EndpointUrl,
-				IsInSecure:        impl.blobConfig.BlobConfig.S3IsInSecure,
-				BucketName:        impl.blobConfig.BlobConfig.S3BucketName,
-				Region:            impl.blobConfig.BlobConfig.S3Region,
-				VersioningEnabled: impl.blobConfig.BlobConfig.S3VersioningEnabled,
+				AccessKey:         impl.blobConfig.S3AccessKey,
+				Passkey:           impl.blobConfig.S3Passkey,
+				EndpointUrl:       impl.blobConfig.S3EndpointUrl,
+				IsInSecure:        impl.blobConfig.S3IsInSecure,
+				BucketName:        impl.blobConfig.S3BucketName,
+				Region:            impl.blobConfig.S3Region,
+				VersioningEnabled: impl.blobConfig.S3VersioningEnabled,
 			}
 			request.AwsS3BaseConfig = awsS3BaseConfig
 
@@ -635,10 +635,10 @@ func (impl *ReleaseNoteServiceImpl) createBlobStorageRequest(cloudProvider blob_
 	case blob_storage.BLOB_STORAGE_AZURE:
 		{
 			azureBlobBaseConfig := &blob_storage.AzureBlobBaseConfig{
-				AccountKey:        impl.blobConfig.BlobConfig.AzureAccountKey,
-				AccountName:       impl.blobConfig.BlobConfig.AzureAccountName,
-				Enabled:           impl.blobConfig.BlobConfig.AzureEnabled,
-				BlobContainerName: impl.blobConfig.BlobConfig.AzureBlobContainerName,
+				AccountKey:        impl.blobConfig.AzureAccountKey,
+				AccountName:       impl.blobConfig.AzureAccountName,
+				Enabled:           impl.blobConfig.AzureEnabled,
+				BlobContainerName: impl.blobConfig.AzureBlobContainerName,
 			}
 			request.AzureBlobBaseConfig = azureBlobBaseConfig
 
@@ -646,8 +646,8 @@ func (impl *ReleaseNoteServiceImpl) createBlobStorageRequest(cloudProvider blob_
 	case blob_storage.BLOB_STORAGE_GCP:
 		{
 			gcpBlobBaseConfig := &blob_storage.GcpBlobBaseConfig{
-				CredentialFileJsonData: impl.blobConfig.BlobConfig.GcpCredentialFileJsonData,
-				BucketName:             impl.blobConfig.BlobConfig.GcpBucketName,
+				CredentialFileJsonData: impl.blobConfig.GcpCredentialFileJsonData,
+				BucketName:             impl.blobConfig.GcpBucketName,
 			}
 			request.GcpBlobBaseConfig = gcpBlobBaseConfig
 		}

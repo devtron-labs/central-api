@@ -24,19 +24,12 @@ type BlobConfigVariables struct {
 	GcpCredentialFileJsonData string                       `env:"GCP_CREDENTIAL_FILE_JSON_DATA"`
 }
 
-type BlobConfig struct {
-	BlobConfig *BlobConfigVariables
-}
-
-func NewBlobConfig(logger *zap.SugaredLogger) (*BlobConfig, error) {
+func NewBlobConfig(logger *zap.SugaredLogger) (*BlobConfigVariables, error) {
 	cfg := &BlobConfigVariables{}
 	err := env.Parse(cfg)
 	if err != nil {
 		logger.Errorw("error on parsing module config", "err", err)
-		return &BlobConfig{}, err
+		return &BlobConfigVariables{}, err
 	}
-	blobConfig := &BlobConfig{
-		BlobConfig: cfg,
-	}
-	return blobConfig, nil
+	return cfg, nil
 }
