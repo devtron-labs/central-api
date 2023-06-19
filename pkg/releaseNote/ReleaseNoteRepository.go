@@ -19,7 +19,9 @@ package releaseNote
 
 import (
 	"github.com/devtron-labs/central-api/common"
+	"github.com/devtron-labs/central-api/pkg/sql"
 	"github.com/go-pg/pg"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -43,8 +45,12 @@ type ReleaseNoteRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
-func NewReleaseNoteRepositoryImpl(dbConnection *pg.DB) *ReleaseNoteRepositoryImpl {
-	return &ReleaseNoteRepositoryImpl{dbConnection: dbConnection}
+func NewReleaseNoteRepositoryImpl(logger *zap.SugaredLogger) (*ReleaseNoteRepositoryImpl, error) {
+	dbConnection, err := sql.NewDbConnection(logger)
+	if err != nil {
+		return nil, err
+	}
+	return &ReleaseNoteRepositoryImpl{dbConnection: dbConnection}, nil
 }
 
 func (impl ReleaseNoteRepositoryImpl) GetConnection() *pg.DB {

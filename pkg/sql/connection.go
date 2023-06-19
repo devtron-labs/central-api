@@ -44,7 +44,14 @@ func ParseConfig() (*Config, error) {
 	return cfg, err
 }
 
-func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
+func NewDbConnection(logger *zap.SugaredLogger) (*pg.DB, error) {
+	var cfg *Config
+	var err error
+	cfg, err = ParseConfig()
+	if err != nil {
+		logger.Errorw("error occurred while parsing config file", "err", err)
+		return nil, err
+	}
 	options := pg.Options{
 		Addr:            cfg.Addr + ":" + cfg.Port,
 		User:            cfg.User,
@@ -55,7 +62,7 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 	dbConnection := pg.Connect(&options)
 	//check db connection
 	var test string
-	_, err := dbConnection.QueryOne(&test, `SELECT 1`)
+	_, err = dbConnection.QueryOne(&test, `SELECT 1`)
 
 	if err != nil {
 		logger.Errorw("error in connecting db ", "db", obfuscateSecretTags(cfg), "err", err)
