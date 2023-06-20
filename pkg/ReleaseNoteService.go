@@ -548,6 +548,12 @@ func (impl *ReleaseNoteServiceImpl) GetReleasesOnInitialisation() {
 	}
 	if len(releases) > 0 {
 		releaseCache[CACHE_KEY] = releases
+		releaseInfo := releases[0]
+		_, err = impl.updateTagToBlobStorage(releaseInfo)
+		if err != nil {
+			impl.logger.Errorw("error in updating on blob", "err", err, "tagName", releaseInfo.TagName)
+		}
+
 	}
 }
 
