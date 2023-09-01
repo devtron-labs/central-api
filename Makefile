@@ -19,7 +19,7 @@ wire:
 	wire
 
 clean:
-	rm -f central-api
+	rm -rf central-api
 
 run: build
 	./central-api
