@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package api
 
 import (
@@ -7,7 +23,7 @@ import (
 	"net/http"
 )
 
-//use of writeJsonRespStructured is preferable. it api exists due to historical reason
+// use of writeJsonRespStructured is preferable. it api exists due to historical reason
 // err.message is used as internal message for ApiError object in resp
 func writeJsonResp(w http.ResponseWriter, err error, respBody interface{}, status int) {
 	response := ResponseV2{}
@@ -68,7 +84,7 @@ func writeJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 	w.Write(b)
 }
 
-//use this method when we have specific api error to be conveyed to api User
+// use this method when we have specific api error to be conveyed to api User
 func writeJsonRespStructured(w http.ResponseWriter, err error, respBody interface{}, status int, apiErrors []*util.ApiError) {
 	response := ResponseV2{}
 	response.Code = status
@@ -88,7 +104,7 @@ func writeJsonRespStructured(w http.ResponseWriter, err error, respBody interfac
 	w.Write(b)
 }
 
-//global response body used across api
+// global response body used across api
 type ResponseV2 struct {
 	Code   int              `json:"code,omitempty"`
 	Status string           `json:"status,omitempty"`
