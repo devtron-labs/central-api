@@ -21,6 +21,7 @@ import (
 	util "github.com/devtron-labs/central-api/client"
 	"github.com/devtron-labs/central-api/common"
 	"github.com/devtron-labs/central-api/pkg"
+	"github.com/devtron-labs/central-api/pkg/bean"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -134,8 +135,13 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
+	repo := r.URL.Query().Get("repo")
+	repository := bean.Oss
+	if len(repo) > 0 {
+		repository = bean.Repository(repo)
+	}
 	//will fetch all the releases from cache and later apply size and offset filter
-	response, err := impl.releaseNoteService.GetReleases()
+	response, err := impl.releaseNoteService.GetReleases(repository)
 	if err != nil {
 		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -178,7 +184,7 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 	// validate event type
 	eventType := r.Header.Get(impl.client.GitHubConfig.GitHubEventTypeHeader)
 	impl.logger.Debugw("webhook event type header", "eventType : ", eventType)
-	if len(eventType) == 0 && eventType != pkg.EventTypeRelease {
+	if len(eventType) == 0 && eventType != bean.EventTypeRelease {
 		impl.logger.Errorw("Event type not known ", eventType)
 		impl.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

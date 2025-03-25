@@ -24,6 +24,7 @@ import (
 	"time"
 )
 
+// Deprecated: db is not in use anymore, we maintain cache and fetch data from cache
 type ReleaseNote struct {
 	tableName   struct{}          `sql:"release_notes"`
 	Id          int               `sql:"id,pk"`
