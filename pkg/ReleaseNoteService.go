@@ -38,7 +38,7 @@ type ReleaseNoteService interface {
 	UpdateReleases(requestBodyBytes []byte) (bool, error)
 	GetModulesV2() ([]*common.Module, error)
 	GetModuleByName(name string) (*common.Module, error)
-	GetReleasesOnInitialisation(repository bean.Repository)
+	GetReleasesOnInitialisation(repository bean.Repository) error
 }
 
 type ReleaseNoteServiceImpl struct {
@@ -68,7 +68,11 @@ func NewReleaseNoteServiceImpl(logger *zap.SugaredLogger, client *util.GitHubCli
 	// Async Call for getting releases from Github
 	serviceImpl.logger.Infow("getting release from github")
 	for _, repo := range client.GitHubConfig.GitHubRepo {
-		go serviceImpl.GetReleasesOnInitialisation(bean.Repository(repo))
+		err := serviceImpl.GetReleasesOnInitialisation(bean.Repository(repo))
+		if err != nil {
+			logger.Errorw("error in getting releases from github", "err", err)
+			return nil, err
+		}
 	}
 	return serviceImpl, nil
 }
@@ -283,6 +287,8 @@ func (impl *ReleaseNoteServiceImpl) GetReleasesFromGithubWithRetry(repository be
 			retryCount = retryCount + 1
 			releasesDto, releaseStatus := impl.GetReleasesFromGithub(repository)
 			if !releaseStatus {
+				// adding sleep for 3 seconds before retry
+				time.Sleep(3 * time.Second)
 				continue
 			}
 			operationComplete = releaseStatus
@@ -468,13 +474,13 @@ func (impl *ReleaseNoteServiceImpl) GetModuleByName(name string) (*common.Module
 	return module, nil
 }
 
-func (impl *ReleaseNoteServiceImpl) GetReleasesOnInitialisation(repository bean.Repository) {
+func (impl *ReleaseNoteServiceImpl) GetReleasesOnInitialisation(repository bean.Repository) error {
 	cacheKey := bean.GetCacheKeyBasedOnRepo(repository)
 	// Getting releases from github on Initialisation(will try 3 times if failed)
 	releases, err := impl.GetReleasesFromGithubWithRetry(repository)
 	if err != nil {
 		impl.logger.Errorw("error in getting releases from github on initialisation", "err", fmt.Errorf("failed operation on fetching releases from github, attempted 3 times"))
-		return
+		return err
 	}
 	if len(releases) > 0 {
 		releaseCache[cacheKey] = releases
@@ -482,9 +488,11 @@ func (impl *ReleaseNoteServiceImpl) GetReleasesOnInitialisation(repository bean.
 		_, err = impl.updateTagToBlobStorage(releaseInfo, repository)
 		if err != nil {
 			impl.logger.Errorw("error in updating on blob", "err", err, "tagName", releaseInfo.TagName)
+			return err
 		}
 
 	}
+	return nil
 }
 
 func (impl *ReleaseNoteServiceImpl) createBlobStorageRequest(cloudProvider blob_storage.BlobStorageType, sourceKey string, destinationKey string) *blob_storage.BlobStorageRequest {

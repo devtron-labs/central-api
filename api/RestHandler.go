@@ -184,7 +184,7 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 	// validate event type
 	eventType := r.Header.Get(impl.client.GitHubConfig.GitHubEventTypeHeader)
 	impl.logger.Debugw("webhook event type header", "eventType : ", eventType)
-	if len(eventType) == 0 && eventType != bean.EventTypeRelease {
+	if len(eventType) == 0 || eventType != bean.EventTypeRelease {
 		impl.logger.Errorw("Event type not known ", eventType)
 		impl.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
