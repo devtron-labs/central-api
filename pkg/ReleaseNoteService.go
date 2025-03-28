@@ -248,7 +248,7 @@ func (impl *ReleaseNoteServiceImpl) GetReleases(repository bean.Repository) ([]*
 		return releaseList, err
 	}
 	var tagNameFromCache string
-	if len(releaseCache) > 0 {
+	if len(releaseCache) > 0 && len(releaseCache[cacheKey]) > 0 {
 		tagNameFromCache = releaseCache[cacheKey][0].TagName
 	}
 	// if latest release tag is same with cache, return from cache
