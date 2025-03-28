@@ -154,6 +154,9 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 			response = response[offset:]
 		}
 	}
+	if len(response) == 0 {
+		response = make([]*common.Release, 0)
+	}
 
 	impl.WriteJsonResp(w, nil, response, http.StatusOK)
 	return
