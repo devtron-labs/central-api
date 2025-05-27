@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type RestHandler interface {
@@ -140,6 +141,7 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 	if len(repo) > 0 {
 		repository = bean.Repository(repo)
 	}
+	serverVersion := r.URL.Query().Get("serverVersion")
 	//will fetch all the releases from cache and later apply size and offset filter
 	response, err := impl.releaseNoteService.GetReleases(repository)
 	if err != nil {
@@ -147,12 +149,22 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if size > 0 {
+	if size > 0 && len(serverVersion) == 0 {
 		if offset+size <= len(response) {
 			response = response[offset : offset+size]
 		} else {
 			response = response[offset:]
 		}
+	} else if len(serverVersion) > 0 {
+		// get all releases of that version and above that version
+		var filteredResponse []*common.Release
+		for _, release := range response {
+			// Compare version strings - include matching version and newer versions
+			if release.TagName == serverVersion || isVersionNewer(release.TagName, serverVersion) {
+				filteredResponse = append(filteredResponse, release)
+			}
+		}
+		response = filteredResponse
 	}
 	if len(response) == 0 {
 		response = make([]*common.Release, 0)
@@ -229,4 +241,40 @@ func (impl *RestHandlerImpl) GetBuildpackMetadata(w http.ResponseWriter, r *http
 	buildpackMetadata := impl.ciBuildMetadataService.GetBuildpackMetadata()
 	impl.WriteJsonResp(w, nil, buildpackMetadata, http.StatusOK)
 	return
+}
+
+// isVersionNewer compares two version strings and returns true if v1 is newer than v2
+func isVersionNewer(v1, v2 string) bool {
+	// Remove 'v' prefix if present
+	v1 = strings.TrimPrefix(v1, "v")
+	v2 = strings.TrimPrefix(v2, "v")
+
+	// Split versions into components
+	v1Parts := strings.Split(v1, ".")
+	v2Parts := strings.Split(v2, ".")
+
+	// Compare each component
+	for i := 0; i < len(v1Parts) && i < len(v2Parts); i++ {
+		v1Num, err1 := strconv.Atoi(v1Parts[i])
+		v2Num, err2 := strconv.Atoi(v2Parts[i])
+
+		// If parts aren't numeric, fall back to string comparison
+		if err1 != nil || err2 != nil {
+			if v1Parts[i] > v2Parts[i] {
+				return true
+			} else if v1Parts[i] < v2Parts[i] {
+				return false
+			}
+			continue
+		}
+
+		if v1Num > v2Num {
+			return true
+		} else if v1Num < v2Num {
+			return false
+		}
+	}
+
+	// If all compared components are equal, the longer version is newer
+	return len(v1Parts) > len(v2Parts)
 }
