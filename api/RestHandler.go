@@ -148,14 +148,7 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	if size > 0 && len(serverVersion) == 0 {
-		if offset+size <= len(response) {
-			response = response[offset : offset+size]
-		} else {
-			response = response[offset:]
-		}
-	} else if len(serverVersion) > 0 {
+	if len(serverVersion) > 0 {
 		// get all releases of that version and above that version
 		var filteredResponse []*common.Release
 		for _, release := range response {
@@ -165,6 +158,14 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 			}
 		}
 		response = filteredResponse
+	}
+
+	if size > 0 {
+		if offset+size <= len(response) {
+			response = response[offset : offset+size]
+		} else {
+			response = response[offset:]
+		}
 	}
 	if len(response) == 0 {
 		response = make([]*common.Release, 0)
