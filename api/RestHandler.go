@@ -121,15 +121,18 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 	size := 10
 	var err error
 	offsetQueryParam := r.URL.Query().Get("offset")
-	if len(offsetQueryParam) > 0 {
+	sizeQueryParam := r.URL.Query().Get("size")
+	hasOffsetParam := len(offsetQueryParam) > 0
+	hasSizeParam := len(sizeQueryParam) > 0
+
+	if hasOffsetParam {
 		offset, err = strconv.Atoi(offsetQueryParam)
 		if err != nil {
 			impl.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
 			return
 		}
 	}
-	sizeQueryParam := r.URL.Query().Get("size")
-	if len(sizeQueryParam) > 0 {
+	if hasSizeParam {
 		size, err = strconv.Atoi(sizeQueryParam)
 		if err != nil {
 			impl.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
@@ -158,13 +161,23 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 			}
 		}
 		response = filteredResponse
-	}
 
-	if size > 0 {
-		if offset+size <= len(response) {
-			response = response[offset : offset+size]
-		} else {
-			response = response[offset:]
+		// If serverVersion is provided, only apply pagination if size are explicitly provided
+		if hasSizeParam && size > 0 {
+			if offset+size <= len(response) {
+				response = response[offset : offset+size]
+			} else {
+				response = response[offset:]
+			}
+		}
+	} else {
+		// If serverVersion is not provided, apply pagination with default or provided values
+		if size > 0 {
+			if offset+size <= len(response) {
+				response = response[offset : offset+size]
+			} else {
+				response = response[offset:]
+			}
 		}
 	}
 	if len(response) == 0 {
