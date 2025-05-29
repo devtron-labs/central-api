@@ -18,6 +18,7 @@ package api
 
 import (
 	"encoding/json"
+	"github.com/Masterminds/semver"
 	util "github.com/devtron-labs/central-api/client"
 	"github.com/devtron-labs/central-api/common"
 	"github.com/devtron-labs/central-api/pkg"
@@ -259,36 +260,23 @@ func (impl *RestHandlerImpl) GetBuildpackMetadata(w http.ResponseWriter, r *http
 
 // isVersionNewer compares two version strings and returns true if v1 is newer than v2
 func isVersionNewer(v1, v2 string) bool {
-	// Remove 'v' prefix if present
-	v1 = strings.TrimPrefix(v1, "v")
-	v2 = strings.TrimPrefix(v2, "v")
-
-	// Split versions into components
-	v1Parts := strings.Split(v1, ".")
-	v2Parts := strings.Split(v2, ".")
-
-	// Compare each component
-	for i := 0; i < len(v1Parts) && i < len(v2Parts); i++ {
-		v1Num, err1 := strconv.Atoi(v1Parts[i])
-		v2Num, err2 := strconv.Atoi(v2Parts[i])
-
-		// If parts aren't numeric, fall back to string comparison
-		if err1 != nil || err2 != nil {
-			if v1Parts[i] > v2Parts[i] {
-				return true
-			} else if v1Parts[i] < v2Parts[i] {
-				return false
-			}
-			continue
-		}
-
-		if v1Num > v2Num {
-			return true
-		} else if v1Num < v2Num {
-			return false
-		}
+	// Ensure 'v' prefix is present for semver parsing
+	if !strings.HasPrefix(v1, "v") {
+		v1 = "v" + v1
+	}
+	if !strings.HasPrefix(v2, "v") {
+		v2 = "v" + v2
 	}
 
-	// If all compared components are equal, the longer version is newer
-	return len(v1Parts) > len(v2Parts)
+	// Parse versions
+	ver1, err1 := semver.NewVersion(v1)
+	ver2, err2 := semver.NewVersion(v2)
+
+	// Fall back to string comparison if parsing fails
+	if err1 != nil || err2 != nil {
+		return strings.TrimPrefix(v1, "v") > strings.TrimPrefix(v2, "v")
+	}
+
+	// Compare using semver
+	return ver1.GreaterThan(ver2)
 }
