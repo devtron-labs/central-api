@@ -3,6 +3,7 @@ module github.com/devtron-labs/central-api
 go 1.18
 
 require (
+	github.com/Masterminds/semver v1.5.0
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/devtron-labs/common-lib v0.0.16-0.20240318063710-69cb957d019a
 	github.com/go-pg/pg v6.15.1+incompatible

@@ -18,6 +18,7 @@ package api
 
 import (
 	"encoding/json"
+	"github.com/Masterminds/semver"
 	util "github.com/devtron-labs/central-api/client"
 	"github.com/devtron-labs/central-api/common"
 	"github.com/devtron-labs/central-api/pkg"
@@ -27,6 +28,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type RestHandler interface {
@@ -120,15 +122,18 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 	size := 10
 	var err error
 	offsetQueryParam := r.URL.Query().Get("offset")
-	if len(offsetQueryParam) > 0 {
+	sizeQueryParam := r.URL.Query().Get("size")
+	hasOffsetParam := len(offsetQueryParam) > 0
+	hasSizeParam := len(sizeQueryParam) > 0
+
+	if hasOffsetParam {
 		offset, err = strconv.Atoi(offsetQueryParam)
 		if err != nil {
 			impl.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
 			return
 		}
 	}
-	sizeQueryParam := r.URL.Query().Get("size")
-	if len(sizeQueryParam) > 0 {
+	if hasSizeParam {
 		size, err = strconv.Atoi(sizeQueryParam)
 		if err != nil {
 			impl.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
@@ -140,18 +145,40 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 	if len(repo) > 0 {
 		repository = bean.Repository(repo)
 	}
+	serverVersion := r.URL.Query().Get("serverVersion")
 	//will fetch all the releases from cache and later apply size and offset filter
 	response, err := impl.releaseNoteService.GetReleases(repository)
 	if err != nil {
 		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	if len(serverVersion) > 0 {
+		// get all releases of that version and above that version
+		var filteredResponse []*common.Release
+		for _, release := range response {
+			// Compare version strings - include matching version and newer versions
+			if release.TagName == serverVersion || isVersionNewer(release.TagName, serverVersion) {
+				filteredResponse = append(filteredResponse, release)
+			}
+		}
+		response = filteredResponse
 
-	if size > 0 {
-		if offset+size <= len(response) {
-			response = response[offset : offset+size]
-		} else {
-			response = response[offset:]
+		// If serverVersion is provided, only apply pagination if size are explicitly provided
+		if hasSizeParam && size > 0 {
+			if offset+size <= len(response) {
+				response = response[offset : offset+size]
+			} else {
+				response = response[offset:]
+			}
+		}
+	} else {
+		// If serverVersion is not provided, apply pagination with default or provided values
+		if size > 0 {
+			if offset+size <= len(response) {
+				response = response[offset : offset+size]
+			} else {
+				response = response[offset:]
+			}
 		}
 	}
 	if len(response) == 0 {
@@ -229,4 +256,27 @@ func (impl *RestHandlerImpl) GetBuildpackMetadata(w http.ResponseWriter, r *http
 	buildpackMetadata := impl.ciBuildMetadataService.GetBuildpackMetadata()
 	impl.WriteJsonResp(w, nil, buildpackMetadata, http.StatusOK)
 	return
+}
+
+// isVersionNewer compares two version strings and returns true if v1 is newer than v2
+func isVersionNewer(v1, v2 string) bool {
+	// Ensure 'v' prefix is present for semver parsing
+	if !strings.HasPrefix(v1, "v") {
+		v1 = "v" + v1
+	}
+	if !strings.HasPrefix(v2, "v") {
+		v2 = "v" + v2
+	}
+
+	// Parse versions
+	ver1, err1 := semver.NewVersion(v1)
+	ver2, err2 := semver.NewVersion(v2)
+
+	// Fall back to string comparison if parsing fails
+	if err1 != nil || err2 != nil {
+		return strings.TrimPrefix(v1, "v") > strings.TrimPrefix(v2, "v")
+	}
+
+	// Compare using semver
+	return ver1.GreaterThan(ver2)
 }
