@@ -18,30 +18,37 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/central-api/common"
+	"github.com/devtron-labs/central-api/api/currency"
+	"github.com/devtron-labs/central-api/api/handler"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
 )
 
 type MuxRouter struct {
-	logger      *zap.SugaredLogger
-	Router      *mux.Router
-	restHandler RestHandler
+	logger         *zap.SugaredLogger
+	Router         *mux.Router
+	restHandler    RestHandler
+	currencyRouter currency.Router
 }
 
-func NewMuxRouter(logger *zap.SugaredLogger, restHandler RestHandler) *MuxRouter {
-	return &MuxRouter{logger: logger, Router: mux.NewRouter(), restHandler: restHandler}
+func NewMuxRouter(logger *zap.SugaredLogger, restHandler RestHandler, currencyRouter currency.Router) *MuxRouter {
+	return &MuxRouter{
+		logger:         logger,
+		Router:         mux.NewRouter(),
+		restHandler:    restHandler,
+		currencyRouter: currencyRouter,
+	}
 }
 
 func (r MuxRouter) Init() {
 	r.Router.StrictSlash(true)
 	//r.Router.Handle("/metrics", promhttp.Handler())
 	r.Router.Path("/health").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		setupResponse(&writer, request)
+		handler.SetupCorsOriginHeader(&writer, request)
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(200)
-		response := common.Response{}
+		response := handler.Response{}
 		response.Code = 200
 		response.Result = "OK"
 		b, err := json.Marshal(response)
@@ -61,4 +68,9 @@ func (r MuxRouter) Init() {
 	r.Router.Path("/module").
 		Queries("name", "{name}").
 		HandlerFunc(r.restHandler.GetModuleByName).Methods("GET")
+
+	// Create a sub-router for currency endpoints
+	currencyRouter := r.Router.PathPrefix("/currency").Subrouter()
+	// Initialize currency routes
+	r.currencyRouter.InitCurrencyRoutes(currencyRouter)
 }

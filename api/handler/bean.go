@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-package util
+package handler
 
-import (
-	"fmt"
-	"github.com/go-pg/pg"
-)
+import "strconv"
 
+// Response represents a generic API response
+type Response struct {
+	Code   int         `json:"code,omitempty"`
+	Status string      `json:"status,omitempty"`
+	Result interface{} `json:"result,omitempty"`
+	Errors []*ApiError `json:"errors,omitempty"`
+}
+
+// ApiError represents an error response
 type ApiError struct {
 	HttpStatusCode    int         `json:"-"`
 	Code              string      `json:"code,omitempty"`
@@ -29,20 +35,17 @@ type ApiError struct {
 	UserDetailMessage string      `json:"userDetailMessage,omitempty"`
 }
 
+// NewApiError creates a new ApiError object
+func NewApiError(httpStatusCode int, userMessage, internalMessage string) *ApiError {
+	return &ApiError{
+		HttpStatusCode:  httpStatusCode,
+		Code:            strconv.Itoa(httpStatusCode),
+		InternalMessage: internalMessage,
+		UserMessage:     userMessage,
+	}
+}
+
+// Error returns the internal message
 func (e *ApiError) Error() string {
 	return e.InternalMessage
-}
-
-// default internal will be set
-func (e *ApiError) ErrorfInternal(format string, a ...interface{}) error {
-	return &ApiError{InternalMessage: fmt.Sprintf(format, a...)}
-}
-
-// default user message will be set
-func (e ApiError) ErrorfUser(format string, a ...interface{}) error {
-	return &ApiError{InternalMessage: fmt.Sprintf(format, a...)}
-}
-
-func IsErrNoRows(err error) bool {
-	return pg.ErrNoRows == err
 }
