@@ -143,10 +143,12 @@ func (s *ServiceImpl) fetchRatesFromAPI(ctx context.Context, base string) (*Exch
 		return nil, fmt.Errorf("failed to parse url: %w", err)
 	}
 	exchangeRateUrl := baseURl.JoinPath("latest.json")
-	exchangeRateUrl.Query().Set("app_id", s.config.APIKey)
+	queries := exchangeRateUrl.Query()
+	queries.Set("app_id", s.config.APIKey)
 	if base != USD {
-		exchangeRateUrl.Query().Set("base", base)
+		queries.Set("base", base)
 	}
+	exchangeRateUrl.RawQuery = queries.Encode()
 	req, err := http.NewRequestWithContext(ctx, "GET", exchangeRateUrl.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
