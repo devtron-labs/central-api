@@ -17,8 +17,8 @@
 package api
 
 import (
-	"encoding/json"
 	"github.com/Masterminds/semver"
+	"github.com/devtron-labs/central-api/api/handler"
 	util "github.com/devtron-labs/central-api/client"
 	"github.com/devtron-labs/central-api/common"
 	"github.com/devtron-labs/central-api/pkg"
@@ -60,63 +60,32 @@ type RestHandlerImpl struct {
 	ciBuildMetadataService pkg.CiBuildMetadataService
 }
 
-func setupResponse(w *http.ResponseWriter, req *http.Request) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-	(*w).Header().Set("Content-Type", "text/html; charset=utf-8")
-}
-
-func (impl RestHandlerImpl) WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, status int) {
-	response := common.Response{}
-	response.Code = status
-	response.Status = http.StatusText(status)
-	if err == nil {
-		response.Result = respBody
-	} else {
-		apiErr := &common.ApiError{}
-		apiErr.Code = "000" // 000=unknown
-		apiErr.InternalMessage = err.Error()
-		apiErr.UserMessage = respBody
-		response.Errors = []*common.ApiError{apiErr}
-
-	}
-	b, err := json.Marshal(response)
-	if err != nil {
-		impl.logger.Errorw("error in marshaling err object", "err", err)
-		status = 500
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	w.Write(b)
-}
-
 func (impl *RestHandlerImpl) GetModules(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Debug("get all modules")
-	setupResponse(&w, r)
+	handler.SetupCorsOriginHeader(&w, r)
 	modules, err := impl.releaseNoteService.GetModules()
 	if err != nil {
-		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	impl.WriteJsonResp(w, nil, modules, http.StatusOK)
+	handler.WriteJsonResp(w, nil, modules, http.StatusOK)
 	return
 }
 
 func (impl *RestHandlerImpl) GetModulesV2(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Debug("get all modules")
-	setupResponse(&w, r)
+	handler.SetupCorsOriginHeader(&w, r)
 	modules, err := impl.releaseNoteService.GetModulesV2()
 	if err != nil {
-		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	impl.WriteJsonResp(w, nil, modules, http.StatusOK)
+	handler.WriteJsonResp(w, nil, modules, http.StatusOK)
 	return
 }
 
 func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request) {
-	setupResponse(&w, r)
+	handler.SetupCorsOriginHeader(&w, r)
 	impl.logger.Debug("get all releases")
 	offset := 0
 	size := 10
@@ -129,14 +98,14 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 	if hasOffsetParam {
 		offset, err = strconv.Atoi(offsetQueryParam)
 		if err != nil {
-			impl.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+			handler.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
 			return
 		}
 	}
 	if hasSizeParam {
 		size, err = strconv.Atoi(sizeQueryParam)
 		if err != nil {
-			impl.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+			handler.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
 			return
 		}
 	}
@@ -149,7 +118,7 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 	//will fetch all the releases from cache and later apply size and offset filter
 	response, err := impl.releaseNoteService.GetReleases(repository)
 	if err != nil {
-		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	if len(serverVersion) > 0 {
@@ -185,7 +154,7 @@ func (impl *RestHandlerImpl) GetReleases(w http.ResponseWriter, r *http.Request)
 		response = make([]*common.Release, 0)
 	}
 
-	impl.WriteJsonResp(w, nil, response, http.StatusOK)
+	handler.WriteJsonResp(w, nil, response, http.StatusOK)
 	return
 }
 
@@ -200,7 +169,7 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 	requestBodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		impl.logger.Errorw("Cannot read the request body:", "err", err)
-		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -208,7 +177,7 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 	impl.logger.Debugw("Secret validation result ", "isValidSig", isValidSig)
 	if !isValidSig {
 		impl.logger.Error("Signature mismatch")
-		impl.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		handler.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 	// validate event type
@@ -216,45 +185,45 @@ func (impl *RestHandlerImpl) ReleaseWebhookHandler(w http.ResponseWriter, r *htt
 	impl.logger.Debugw("webhook event type header", "eventType : ", eventType)
 	if len(eventType) == 0 || eventType != bean.EventTypeRelease {
 		impl.logger.Errorw("Event type not known ", eventType)
-		impl.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	flag, err := impl.releaseNoteService.UpdateReleases(requestBodyBytes)
 	if err != nil {
-		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	impl.WriteJsonResp(w, err, flag, http.StatusOK)
+	handler.WriteJsonResp(w, err, flag, http.StatusOK)
 	return
 }
 
 func (impl *RestHandlerImpl) GetModuleByName(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Debug("get module meta info by name")
-	setupResponse(&w, r)
+	handler.SetupCorsOriginHeader(&w, r)
 	vars := mux.Vars(r)
 	name := vars["name"]
 	module, err := impl.releaseNoteService.GetModuleByName(name)
 	if err != nil {
-		impl.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		handler.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	impl.WriteJsonResp(w, nil, module, http.StatusOK)
+	handler.WriteJsonResp(w, nil, module, http.StatusOK)
 	return
 }
 
 func (impl *RestHandlerImpl) GetDockerfileTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Debug("get all dockerfile template metadata")
-	setupResponse(&w, r)
+	handler.SetupCorsOriginHeader(&w, r)
 	dockerfileTemplateMetadata := impl.ciBuildMetadataService.GetDockerfileTemplateMetadata()
-	impl.WriteJsonResp(w, nil, dockerfileTemplateMetadata, http.StatusOK)
+	handler.WriteJsonResp(w, nil, dockerfileTemplateMetadata, http.StatusOK)
 	return
 }
 func (impl *RestHandlerImpl) GetBuildpackMetadata(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Debug("get all buildpack metadata")
-	setupResponse(&w, r)
+	handler.SetupCorsOriginHeader(&w, r)
 	buildpackMetadata := impl.ciBuildMetadataService.GetBuildpackMetadata()
-	impl.WriteJsonResp(w, nil, buildpackMetadata, http.StatusOK)
+	handler.WriteJsonResp(w, nil, buildpackMetadata, http.StatusOK)
 	return
 }
 
