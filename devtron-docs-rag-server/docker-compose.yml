@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: ankane/pgvector:latest
+    image: pgvector/pgvector:pg14
     container_name: devtron-postgres
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-devtron_docs}

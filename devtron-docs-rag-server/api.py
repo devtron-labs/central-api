@@ -378,4 +378,5 @@ async def reindex_documentation(request: ReindexRequest, background_tasks: Backg
         # Sync docs from GitHub
         changed_files = await doc_processor.sync_docs()
         logger.info(f"Synced documentation, {len(changed_files)} files changed")
-
+    except:
+        logger.error("Error syncing documentation")
