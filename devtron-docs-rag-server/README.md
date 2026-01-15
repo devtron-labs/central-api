@@ -13,6 +13,17 @@ A REST API service that provides semantic search over Devtron documentation usin
 - 🔄 **Incremental Updates**: Only re-indexes changed files on sync
 - 🐳 **Docker Support**: Easy deployment with Docker Compose
 
+## 🎯 For Athena-BE / MCP Tool Integration
+
+**Important:** If you're integrating this with Athena-BE (which already has LLM capabilities):
+
+- ✅ **Use `use_llm=false`** in all search requests
+- ✅ **Let Athena-BE handle LLM processing** to avoid double token consumption
+- ✅ **No AWS credentials needed** in this API
+- ✅ **See [MCP_INTEGRATION_GUIDE.md](./MCP_INTEGRATION_GUIDE.md)** for detailed integration guide
+
+**Why?** Using `use_llm=true` would cause LLM to be called twice (once here, once in Athena-BE), doubling your token costs and latency!
+
 ## Architecture
 
 ```

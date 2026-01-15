@@ -2,6 +2,13 @@
 
 This document provides sample API requests and responses for the Devtron Documentation RAG Server.
 
+## ⚠️ Important for Athena-BE Integration
+
+**If you're integrating with Athena-BE (or any service with LLM capabilities):**
+- ✅ **Always use `use_llm=false`** to avoid double token consumption
+- ✅ See [MCP_INTEGRATION_GUIDE.md](./MCP_INTEGRATION_GUIDE.md) for integration details
+- ✅ See [ARCHITECTURE_DECISION.md](./ARCHITECTURE_DECISION.md) for cost/performance analysis
+
 ## Base URL
 ```
 http://localhost:8000

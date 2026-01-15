@@ -116,8 +116,15 @@ app.add_middleware(
 class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query", min_length=1)
     max_results: int = Field(5, description="Maximum number of results", ge=1, le=20)
-    use_llm: bool = Field(True, description="Whether to use LLM for enhanced response")
-    llm_model: str = Field("anthropic.claude-3-haiku-20240307-v1:0", description="Bedrock model ID")
+    use_llm: bool = Field(
+        False,
+        description="Whether to use LLM for enhanced response. "
+                    "Recommended: false for MCP tools (let caller handle LLM to avoid double token usage)"
+    )
+    llm_model: str = Field(
+        "anthropic.claude-3-haiku-20240307-v1:0",
+        description="Bedrock model ID (only used if use_llm=true)"
+    )
 
 
 class SearchResult(BaseModel):
