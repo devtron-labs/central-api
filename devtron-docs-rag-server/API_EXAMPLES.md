@@ -107,21 +107,23 @@ curl -X POST http://localhost:8000/reindex \
 
 **Endpoint:** `POST /search`
 
-**Description:** Perform semantic search over Devtron documentation with optional LLM-enhanced responses.
+**Description:** Perform semantic search over Devtron documentation. Returns relevant documentation chunks based on vector similarity.
 
-#### Request - Basic Search (with LLM)
+**Recommended:** Use `use_llm=false` for MCP tool integration with Athena-BE to avoid double token consumption.
+
+#### Request - Basic Search (Recommended for Athena-BE)
 ```bash
 curl -X POST http://localhost:8000/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "How do I deploy an application using Devtron?",
     "max_results": 5,
-    "use_llm": true,
-    "llm_model": "anthropic.claude-3-haiku-20240307-v1:0"
+    "use_llm": false
   }'
 ```
 
 #### Response (200 OK)
+
 ```json
 {
   "query": "How do I deploy an application using Devtron?",
@@ -162,12 +164,17 @@ curl -X POST http://localhost:8000/search \
       "score": 0.75
     }
   ],
-  "llm_response": "# Deploying an Application with Devtron\n\nBased on the documentation, here's how to deploy an application using Devtron:\n\n## Step-by-Step Process\n\n1. **Navigate to Applications**: Go to the Applications section in the Devtron dashboard\n\n2. **Create New Application**: Click on 'Create New' to start the application creation process\n\n3. **Connect Git Repository**: Select and connect your Git repository containing the application source code\n\n4. **Configure Build Settings**: Set up your CI pipeline by configuring:\n   - Source code repository details\n   - Build context and Dockerfile location\n   - Pre-build and post-build scripts (if needed)\n   - Docker registry for storing built images\n\n5. **Set Deployment Configuration**: Configure your CD pipeline:\n   - Select target environment (dev, staging, production)\n   - Configure environment-specific values and secrets\n   - Set up pre/post deployment hooks if required\n\n6. **Deploy**: Click 'Deploy' to trigger the deployment\n\n## What Happens Next\n\nDevtron will automatically:\n- Build your Docker image using the CI pipeline\n- Push the image to your configured registry\n- Deploy the application to your Kubernetes cluster\n- Monitor the deployment status\n\n## Workflow Components\n\nA typical Devtron workflow includes:\n- **CI Pipeline**: Builds your Docker image from source\n- **CD Pipeline**: Deploys to Kubernetes environments\n- **Pre/Post Deployment Hooks**: Custom scripts for deployment lifecycle\n\nYou can configure multiple environments and set up promotion strategies to move applications through different stages (dev → staging → production).\n\nDevtron supports multiple build strategies including Docker, Cloud Native Buildpacks, and custom build scripts.",
+  "llm_response": null,
   "total_results": 5
 }
 ```
 
-#### Request - Search Without LLM
+**Note:** `llm_response` is `null` when `use_llm=false`. Process these results in Athena-BE with your LLM to generate enhanced responses.
+
+---
+
+#### Request - RBAC Configuration Search
+
 ```bash
 curl -X POST http://localhost:8000/search \
   -H "Content-Type: application/json" \
@@ -179,6 +186,7 @@ curl -X POST http://localhost:8000/search \
 ```
 
 #### Response (200 OK)
+
 ```json
 {
   "query": "How to configure RBAC in Devtron?",
@@ -210,18 +218,22 @@ curl -X POST http://localhost:8000/search \
 }
 ```
 
-#### Request - Limited Results
+---
+
+#### Request - Helm Chart Deployment
+
 ```bash
 curl -X POST http://localhost:8000/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "helm chart deployment",
     "max_results": 2,
-    "use_llm": true
+    "use_llm": false
   }'
 ```
 
 #### Response (200 OK)
+
 ```json
 {
   "query": "helm chart deployment",
@@ -241,7 +253,7 @@ curl -X POST http://localhost:8000/search \
       "score": 0.87
     }
   ],
-  "llm_response": "# Deploying Helm Charts in Devtron\n\nDevtron provides comprehensive support for Helm chart deployments. Here's what you need to know:\n\n## Supported Helm Chart Sources\n\nDevtron can deploy Helm charts from:\n- **Public Helm Repositories**: Bitnami, Stable charts, and other public repos\n- **Private Helm Repositories**: Your organization's private chart repositories\n- **Git Repositories**: Charts stored in Git\n- **OCI Registries**: Charts stored in OCI-compliant registries\n\n## Deployment Process\n\n1. **Access Chart Store**: Navigate to the Chart Store in Devtron\n2. **Search for Chart**: Find the Helm chart you want to deploy\n3. **Click Deploy**: Initiate the deployment process\n4. **Configure Values**: Customize the chart values for your use case\n5. **Select Environment**: Choose the target environment\n6. **Deploy**: Execute the deployment\n\n## Chart Store Features\n\nThe Chart Store provides:\n- Curated collection of popular Helm charts\n- Chart details and version information\n- Custom values configuration\n- Multi-environment deployment support\n- Management of deployed chart instances\n\nYou can deploy the same chart to multiple environments with different configurations, making it easy to maintain consistency across dev, staging, and production.",
+  "llm_response": null,
   "total_results": 2
 }
 ```
@@ -273,7 +285,7 @@ curl -X POST http://localhost:8000/search \
 
 ---
 
-## Python Client Example
+## Python Client Example (Recommended for Athena-BE)
 
 ```python
 import requests
@@ -281,118 +293,227 @@ import json
 
 BASE_URL = "http://localhost:8000"
 
-# Health check
-response = requests.get(f"{BASE_URL}/health")
-print("Health:", response.json())
+class DevtronDocsClient:
+    """Client for Devtron Documentation RAG API."""
 
-# Re-index documentation
-reindex_data = {"force": False}
-response = requests.post(f"{BASE_URL}/reindex", json=reindex_data)
-print("Reindex:", response.json())
+    def __init__(self, base_url: str = "http://localhost:8000"):
+        self.base_url = base_url
 
-# Search with LLM
-search_data = {
-    "query": "How do I set up CI/CD pipeline?",
-    "max_results": 5,
-    "use_llm": True,
-    "llm_model": "anthropic.claude-3-haiku-20240307-v1:0"
-}
-response = requests.post(f"{BASE_URL}/search", json=search_data)
-result = response.json()
+    def health_check(self):
+        """Check API health status."""
+        response = requests.get(f"{self.base_url}/health")
+        return response.json()
+
+    def reindex(self, force: bool = False):
+        """Re-index documentation from GitHub."""
+        response = requests.post(
+            f"{self.base_url}/reindex",
+            json={"force": force}
+        )
+        return response.json()
+
+    def search(self, query: str, max_results: int = 5):
+        """
+        Search documentation (without LLM).
+        Returns raw results for processing in Athena-BE.
+        """
+        response = requests.post(
+            f"{self.base_url}/search",
+            json={
+                "query": query,
+                "max_results": max_results,
+                "use_llm": False  # Let Athena-BE handle LLM
+            }
+        )
+        return response.json()
+
+
+# Usage Example
+client = DevtronDocsClient()
+
+# 1. Health check
+health = client.health_check()
+print("Health:", health)
+
+# 2. Re-index (if needed)
+if not health.get("docs_indexed"):
+    print("Indexing documentation...")
+    reindex_result = client.reindex(force=True)
+    print("Reindex:", reindex_result)
+
+# 3. Search documentation
+query = "How do I set up CI/CD pipeline?"
+result = client.search(query, max_results=5)
 
 print(f"\nQuery: {result['query']}")
 print(f"Total Results: {result['total_results']}\n")
 
+# Display results
 for i, doc in enumerate(result['results'], 1):
-    print(f"{i}. {doc['title']} (Score: {doc['score']})")
+    print(f"{i}. {doc['title']} (Score: {doc['score']:.2f})")
     print(f"   Source: {doc['source']}")
-    print(f"   {doc['content'][:100]}...\n")
+    print(f"   Header: {doc.get('header', 'N/A')}")
+    print(f"   Content: {doc['content'][:150]}...\n")
 
-if result['llm_response']:
-    print("LLM Response:")
-    print(result['llm_response'])
+# 4. Now process with Athena-BE's LLM
+# Format context for LLM
+context = "\n\n---\n\n".join([
+    f"[Document {i+1}]\n"
+    f"Title: {doc['title']}\n"
+    f"Source: {doc['source']}\n"
+    f"Content:\n{doc['content']}"
+    for i, doc in enumerate(result['results'])
+])
+
+print("Context prepared for Athena-BE LLM:")
+print(f"Total context length: {len(context)} characters")
+
+# Send to Athena-BE's LLM (pseudo-code)
+# athena_llm_response = athena_llm.generate(
+#     prompt=f"Question: {query}\n\nContext:\n{context}\n\nAnswer:"
+# )
 ```
 
 ---
 
-## JavaScript/Node.js Client Example
+## JavaScript/Node.js Client Example (Recommended for Athena-BE)
 
 ```javascript
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:8000';
+class DevtronDocsClient {
+  constructor(baseURL = 'http://localhost:8000') {
+    this.client = axios.create({ baseURL });
+  }
 
-async function searchDocs() {
+  async healthCheck() {
+    const { data } = await this.client.get('/health');
+    return data;
+  }
+
+  async reindex(force = false) {
+    const { data } = await this.client.post('/reindex', { force });
+    return data;
+  }
+
+  async search(query, maxResults = 5) {
+    /**
+     * Search documentation without LLM.
+     * Returns raw results for processing in Athena-BE.
+     */
+    const { data } = await this.client.post('/search', {
+      query,
+      max_results: maxResults,
+      use_llm: false  // Let Athena-BE handle LLM
+    });
+    return data;
+  }
+
+  formatContextForLLM(results) {
+    /**
+     * Format search results into context for LLM.
+     */
+    return results.map((doc, index) =>
+      `[Document ${index + 1}]\n` +
+      `Title: ${doc.title}\n` +
+      `Source: ${doc.source}\n` +
+      `Content:\n${doc.content}`
+    ).join('\n\n---\n\n');
+  }
+}
+
+// Usage Example
+async function main() {
   try {
-    // Health check
-    const health = await axios.get(`${BASE_URL}/health`);
-    console.log('Health:', health.data);
+    const client = new DevtronDocsClient();
 
-    // Search documentation
-    const searchResponse = await axios.post(`${BASE_URL}/search`, {
-      query: 'How to configure environment variables?',
-      max_results: 5,
-      use_llm: true,
-      llm_model: 'anthropic.claude-3-haiku-20240307-v1:0'
-    });
+    // 1. Health check
+    const health = await client.healthCheck();
+    console.log('Health:', health);
 
-    const { query, results, llm_response, total_results } = searchResponse.data;
-
-    console.log(`\nQuery: ${query}`);
-    console.log(`Total Results: ${total_results}\n`);
-
-    results.forEach((doc, index) => {
-      console.log(`${index + 1}. ${doc.title} (Score: ${doc.score})`);
-      console.log(`   Source: ${doc.source}`);
-      console.log(`   ${doc.content.substring(0, 100)}...\n`);
-    });
-
-    if (llm_response) {
-      console.log('LLM Response:');
-      console.log(llm_response);
+    // 2. Re-index if needed
+    if (!health.docs_indexed) {
+      console.log('Indexing documentation...');
+      const reindexResult = await client.reindex(true);
+      console.log('Reindex:', reindexResult);
     }
+
+    // 3. Search documentation
+    const query = 'How to configure environment variables?';
+    const result = await client.search(query, 5);
+
+    console.log(`\nQuery: ${result.query}`);
+    console.log(`Total Results: ${result.total_results}\n`);
+
+    // Display results
+    result.results.forEach((doc, index) => {
+      console.log(`${index + 1}. ${doc.title} (Score: ${doc.score.toFixed(2)})`);
+      console.log(`   Source: ${doc.source}`);
+      console.log(`   Header: ${doc.header || 'N/A'}`);
+      console.log(`   Content: ${doc.content.substring(0, 150)}...\n`);
+    });
+
+    // 4. Format context for Athena-BE's LLM
+    const context = client.formatContextForLLM(result.results);
+    console.log('Context prepared for Athena-BE LLM:');
+    console.log(`Total context length: ${context.length} characters`);
+
+    // Send to Athena-BE's LLM (pseudo-code)
+    // const athenaResponse = await athenaLLM.generate({
+    //   prompt: `Question: ${query}\n\nContext:\n${context}\n\nAnswer:`
+    // });
+
   } catch (error) {
     console.error('Error:', error.response?.data || error.message);
   }
 }
 
-searchDocs();
+main();
 ```
 
 ---
 
 ## cURL Examples Collection
 
-### Complete Workflow
+### Complete Workflow (Recommended for Athena-BE)
+
 ```bash
 # 1. Check health
 curl -X GET http://localhost:8000/health
 
-# 2. Initial indexing
+# 2. Initial indexing (one-time)
 curl -X POST http://localhost:8000/reindex \
   -H "Content-Type: application/json" \
   -d '{"force": true}'
 
-# 3. Search without LLM (faster)
+# 3. Search for deployment docs (no LLM)
 curl -X POST http://localhost:8000/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "kubernetes deployment",
-    "max_results": 3,
+    "max_results": 5,
     "use_llm": false
   }'
 
-# 4. Search with LLM (comprehensive answer)
+# 4. Search for troubleshooting docs (no LLM)
 curl -X POST http://localhost:8000/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "How to troubleshoot failed deployments?",
     "max_results": 5,
-    "use_llm": true,
-    "llm_model": "anthropic.claude-3-haiku-20240307-v1:0"
+    "use_llm": false
   }'
 
-# 5. Incremental update (daily sync)
+# 5. Search for CI/CD pipeline docs (no LLM)
+curl -X POST http://localhost:8000/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "CI/CD pipeline configuration",
+    "max_results": 3,
+    "use_llm": false
+  }'
+
+# 6. Incremental update (daily/hourly sync)
 curl -X POST http://localhost:8000/reindex \
   -H "Content-Type: application/json" \
   -d '{"force": false}'
@@ -402,14 +523,22 @@ curl -X POST http://localhost:8000/reindex \
 
 ## Notes
 
-1. **LLM Availability**: LLM responses require AWS Bedrock configuration. If not available, `llm_response` will contain an error message.
+1. **Recommended for Athena-BE**: Always use `use_llm=false` to avoid double token consumption. Process results in Athena-BE with your LLM.
 
-2. **Search Scores**: Scores range from 0.0 to 1.0, with higher scores indicating better semantic similarity.
+2. **Search Scores**: Scores range from 0.0 to 1.0, with higher scores indicating better semantic similarity. Filter results with score < 0.7 if needed.
 
-3. **Max Results**: Limited to 20 results per request to ensure performance.
+3. **Max Results**: Limited to 20 results per request to ensure performance. Recommended: 3-5 results for optimal LLM context.
 
-4. **Re-indexing**: Incremental updates are faster and recommended for regular syncs. Use `force: true` only when needed.
+4. **Re-indexing**:
+   - Initial: `force: true` (5-10 minutes for ~150 docs)
+   - Incremental: `force: false` (30-60 seconds, only changed files)
+   - Schedule incremental updates hourly or daily
 
-5. **Performance**: Search typically completes in <500ms. LLM responses add 2-5 seconds depending on the model.
+5. **Performance**:
+   - Search (no LLM): <500ms
+   - Network transfer: ~50ms
+   - Total for Athena-BE: ~550ms + your LLM processing time
 
+6. **Context Preparation**: Take the `results` array and format it for your LLM. See Python/JavaScript examples above.
 
+7. **No AWS Credentials Needed**: When using `use_llm=false`, you don't need to configure AWS Bedrock credentials in this API.
