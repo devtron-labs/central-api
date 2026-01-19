@@ -31,13 +31,9 @@ COPY devtron-docs-rag-server/api.py .
 COPY devtron-docs-rag-server/doc_processor.py .
 COPY devtron-docs-rag-server/vector_store.py .
 COPY devtron-docs-rag-server/run_migrations.py .
-COPY devtron-docs-rag-server/startup.sh .
 
 # Copy migration scripts from root
 COPY scripts /app/scripts
-
-# Make scripts executable
-RUN chmod +x startup.sh run_migrations.py
 
 # Create directories for data persistence
 RUN mkdir -p /data/devtron-docs
