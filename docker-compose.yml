@@ -1,22 +1,24 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: ankane/pgvector:v0.5.1
-    container_name: central-api-postgres
+  # Dedicated PostgreSQL with pgvector for RAG documentation
+  postgres-pgvector:
+    image: pgvector/pgvector:pg14
+    container_name: central-api-postgres-pgvector
     environment:
       POSTGRES_DB: devtron_docs
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Use different port to avoid conflict with existing PostgreSQL
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_pgvector_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   central-api:
     build:
@@ -25,14 +27,15 @@ services:
     container_name: central-api
     ports:
       - "8080:8080"
+      - "8000:8000"  # RAG server port
     environment:
-      # PostgreSQL configuration
-      - POSTGRES_HOST=postgres
+      # PostgreSQL with pgvector configuration (for RAG)
+      - POSTGRES_HOST=postgres-pgvector
       - POSTGRES_PORT=5432
       - POSTGRES_DB=devtron_docs
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      
+
       # RAG server configuration
       - DOCS_RAG_SERVER_URL=http://localhost:8000
       - DOCS_REPO_URL=https://github.com/devtron-labs/devtron
@@ -41,13 +44,13 @@ services:
       - EMBEDDING_MODEL=BAAI/bge-large-en-v1.5
       - CHUNK_SIZE=1000
       - CHUNK_OVERLAP=0
-      
+
       # Optional: AWS Bedrock (if using LLM)
       # - AWS_REGION=us-east-1
       # - AWS_ACCESS_KEY_ID=your_key
       # - AWS_SECRET_ACCESS_KEY=your_secret
     depends_on:
-      postgres:
+      postgres-pgvector:
         condition: service_healthy
     volumes:
       - docs_data:/data/devtron-docs
@@ -57,9 +60,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    restart: unless-stopped
 
 volumes:
-  postgres_data:
+  postgres_pgvector_data:
     driver: local
   docs_data:
     driver: local
