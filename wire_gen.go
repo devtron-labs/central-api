@@ -50,7 +50,8 @@ func InitializeApp() (*App, error) {
 	serviceImpl := currency.NewServiceImpl(currencyConfig, sugaredLogger)
 	currencyRestHandlerImpl := currency2.NewCurrencyRestHandlerImpl(sugaredLogger, serviceImpl)
 	routerImpl := currency2.NewRouter(sugaredLogger, currencyRestHandlerImpl)
-	muxRouter := api.NewMuxRouter(sugaredLogger, restHandlerImpl, routerImpl)
+	docsProxyHandler := api.NewDocsProxyHandler(sugaredLogger)
+	muxRouter := api.NewMuxRouter(sugaredLogger, restHandlerImpl, routerImpl, docsProxyHandler)
 	app := NewApp(muxRouter, sugaredLogger)
 	return app, nil
 }

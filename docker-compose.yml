@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: ankane/pgvector:v0.5.1
+    container_name: central-api-postgres
+    environment:
+      POSTGRES_DB: devtron_docs
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  central-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: central-api
+    ports:
+      - "8080:8080"
+    environment:
+      # PostgreSQL configuration
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=devtron_docs
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      
+      # RAG server configuration
+      - DOCS_RAG_SERVER_URL=http://localhost:8000
+      - DOCS_REPO_URL=https://github.com/devtron-labs/devtron
+      - DOCS_PATH=/data/devtron-docs
+      
+      # Optional: AWS Bedrock (if using LLM)
+      # - AWS_REGION=us-east-1
+      # - AWS_ACCESS_KEY_ID=your_key
+      # - AWS_SECRET_ACCESS_KEY=your_secret
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - docs_data:/data/devtron-docs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+  docs_data:
+    driver: local
+

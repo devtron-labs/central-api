@@ -18,26 +18,29 @@ package api
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/devtron-labs/central-api/api/currency"
 	"github.com/devtron-labs/central-api/api/handler"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type MuxRouter struct {
-	logger         *zap.SugaredLogger
-	Router         *mux.Router
-	restHandler    RestHandler
-	currencyRouter currency.Router
+	logger           *zap.SugaredLogger
+	Router           *mux.Router
+	restHandler      RestHandler
+	currencyRouter   currency.Router
+	docsProxyHandler *DocsProxyHandler
 }
 
-func NewMuxRouter(logger *zap.SugaredLogger, restHandler RestHandler, currencyRouter currency.Router) *MuxRouter {
+func NewMuxRouter(logger *zap.SugaredLogger, restHandler RestHandler, currencyRouter currency.Router, docsProxyHandler *DocsProxyHandler) *MuxRouter {
 	return &MuxRouter{
-		logger:         logger,
-		Router:         mux.NewRouter(),
-		restHandler:    restHandler,
-		currencyRouter: currencyRouter,
+		logger:           logger,
+		Router:           mux.NewRouter(),
+		restHandler:      restHandler,
+		currencyRouter:   currencyRouter,
+		docsProxyHandler: docsProxyHandler,
 	}
 }
 
@@ -73,4 +76,8 @@ func (r MuxRouter) Init() {
 	currencyRouter := r.Router.PathPrefix("/currency").Subrouter()
 	// Initialize currency routes
 	r.currencyRouter.InitCurrencyRoutes(currencyRouter)
+
+	// Proxy all /docs/* requests to Python FastAPI server
+	// This handles: /docs/health, /docs/search, /docs/reindex
+	r.Router.PathPrefix("/docs").HandlerFunc(r.docsProxyHandler.ProxyRequest)
 }
