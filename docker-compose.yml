@@ -40,7 +40,6 @@ services:
       - DOCS_RAG_SERVER_URL=http://localhost:8000
       - DOCS_REPO_URL=https://github.com/devtron-labs/devtron
       - DOCS_PATH=/data/devtron-docs
-      - AUTO_INDEX_ON_STARTUP=true
       - EMBEDDING_MODEL=BAAI/bge-large-en-v1.5
       - CHUNK_SIZE=1000
       - CHUNK_OVERLAP=0

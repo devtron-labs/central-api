@@ -10,7 +10,7 @@ import os
 from typing import List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import boto3
@@ -109,32 +109,12 @@ async def lifespan(app: FastAPI):
         logger.warning(f"AWS Bedrock not available: {e}. LLM responses will be disabled.")
         bedrock_runtime = None
 
-    # Auto-index documentation on first startup
-    auto_index = os.getenv("AUTO_INDEX_ON_STARTUP", "true").lower() == "true"
-    if auto_index and vector_store.needs_indexing():
-        logger.info("Database is empty. Starting automatic indexing...")
-        try:
-            # Sync docs from GitHub
-            changed_files = await doc_processor.sync_docs()
-            logger.info(f"Synced documentation: {len(changed_files)} files")
-
-            # Get all documents
-            documents = await doc_processor.get_all_documents()
-            logger.info(f"Processing {len(documents)} documents...")
-
-            # Index documents
-            if documents:
-                await vector_store.index_documents(documents)
-                logger.info(f"✓ Auto-indexing complete: {len(documents)} documents indexed")
-            else:
-                logger.warning("No documents found to index")
-        except Exception as e:
-            logger.error(f"Auto-indexing failed: {e}", exc_info=True)
-            logger.warning("Server will start but documentation is not indexed. Call /reindex endpoint manually.")
-    elif auto_index:
-        logger.info("Documentation already indexed, skipping auto-indexing")
+    # Check if database needs indexing
+    if vector_store.needs_indexing():
+        logger.warning("⚠️  Database is empty - no documents indexed")
+        logger.warning("   Call POST /docs/index to index documentation")
     else:
-        logger.info("Auto-indexing disabled (AUTO_INDEX_ON_STARTUP=false)")
+        logger.info("✓ Database already has indexed documents")
 
     logger.info("Server initialization complete")
 
@@ -194,15 +174,15 @@ class SearchResponse(BaseModel):
     total_results: int
 
 
-class ReindexRequest(BaseModel):
-    force: bool = Field(False, description="Force full re-index even if no changes detected")
+class IndexRequest(BaseModel):
+    force: bool = Field(False, description="Force full re-index even if documents already exist")
 
 
-class ReindexResponse(BaseModel):
+class IndexResponse(BaseModel):
     status: str
     message: str
-    documents_processed: int
-    changed_files: int
+    documents_indexed: int
+    total_chunks: int
 
 
 class HealthResponse(BaseModel):
@@ -227,49 +207,94 @@ async def health_check():
         raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
 
 
-@app.post("/reindex", response_model=ReindexResponse)
-async def reindex_documentation(request: ReindexRequest, background_tasks: BackgroundTasks):
+@app.post("/index", response_model=IndexResponse)
+async def index_documentation(request: IndexRequest):
     """
-    Re-index documentation from GitHub.
+    Index documentation from GitHub into the vector database.
 
-    This endpoint syncs the latest documentation from GitHub and updates the vector database.
+    This endpoint:
+    1. Syncs the latest documentation from GitHub
+    2. Processes all markdown files
+    3. Generates embeddings
+    4. Stores vectors in PostgreSQL with pgvector
+
+    If documents already exist and force=false, it will skip indexing.
+    If force=true, it will clear existing data and re-index everything.
     """
     try:
-        logger.info(f"Starting re-index (force={request.force})...")
+        # Check if already indexed
+        if not request.force and not vector_store.needs_indexing():
+            logger.info("Documentation already indexed. Use force=true to re-index.")
+            # Get current count
+            conn = vector_store.pool.getconn()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT COUNT(*) FROM documents;")
+                    doc_count = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(DISTINCT source) FROM documents;")
+                    source_count = cur.fetchone()[0]
+            finally:
+                vector_store.pool.putconn(conn)
+
+            return IndexResponse(
+                status="skipped",
+                message=f"Documentation already indexed ({source_count} documents, {doc_count} chunks). Use force=true to re-index.",
+                documents_indexed=source_count,
+                total_chunks=doc_count
+            )
+
+        # If force=true, reset the database
+        if request.force and not vector_store.needs_indexing():
+            logger.info("Force re-index requested. Clearing existing data...")
+            vector_store.reset()
+            logger.info("✓ Existing data cleared")
+
+        logger.info("Starting documentation indexing...")
 
         # Sync docs from GitHub
+        logger.info("Syncing documentation from GitHub...")
         changed_files = await doc_processor.sync_docs()
-        logger.info(f"Synced documentation, {len(changed_files)} files changed")
+        logger.info(f"✓ Synced documentation: {len(changed_files)} files")
 
-        # Get all documents or only changed ones
-        if request.force or vector_store.needs_indexing():
-            # Full re-index
-            documents = await doc_processor.get_all_documents()
-            if documents:
-                await vector_store.index_documents(documents)
-            message = "Full re-index completed"
-        elif changed_files:
-            # Incremental update
-            documents = await doc_processor.get_changed_documents(changed_files)
-            if documents:
-                await vector_store.update_documents(documents)
-            message = "Incremental update completed"
-        else:
-            documents = []
-            message = "No changes detected, index is up to date"
+        # Get all documents
+        logger.info("Processing documentation files...")
+        documents = await doc_processor.get_all_documents()
+        logger.info(f"✓ Found {len(documents)} documents to process")
 
-        logger.info(f"Re-index complete: {len(documents)} documents processed")
+        if not documents:
+            logger.warning("No documents found to index")
+            return IndexResponse(
+                status="error",
+                message="No documents found in repository",
+                documents_indexed=0,
+                total_chunks=0
+            )
 
-        return ReindexResponse(
+        # Index documents (this will chunk them and create embeddings)
+        logger.info("Generating embeddings and indexing into database...")
+        await vector_store.index_documents(documents)
+
+        # Get final counts
+        conn = vector_store.pool.getconn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM documents;")
+                total_chunks = cur.fetchone()[0]
+        finally:
+            vector_store.pool.putconn(conn)
+
+        logger.info(f"✓ Indexing complete: {len(documents)} documents, {total_chunks} chunks")
+
+        return IndexResponse(
             status="success",
-            message=message,
-            documents_processed=len(documents),
-            changed_files=len(changed_files)
+            message=f"Successfully indexed {len(documents)} documents into {total_chunks} chunks",
+            documents_indexed=len(documents),
+            total_chunks=total_chunks
         )
 
     except Exception as e:
-        logger.error(f"Re-index failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Re-index failed: {str(e)}")
+        logger.error(f"Indexing failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}")
 
 
 @app.post("/search", response_model=SearchResponse)
