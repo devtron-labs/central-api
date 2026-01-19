@@ -56,21 +56,46 @@ async def lifespan(app: FastAPI):
     db_user = os.getenv("POSTGRES_USER", "postgres")
     db_password = os.getenv("POSTGRES_PASSWORD", "postgres")
 
+    logger.info("Starting Devtron Documentation RAG Server")
+
     # Initialize components
+    logger.info("Initializing documentation processor...")
     doc_processor = DocumentationProcessor(
         docs_repo_url,
         docs_path,
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap
     )
-    vector_store = VectorStore(
-        db_host=db_host,
-        db_port=db_port,
-        db_name=db_name,
-        db_user=db_user,
-        db_password=db_password,
-        embedding_model=embedding_model
-    )
+    logger.info("✓ Documentation processor initialized")
+
+    logger.info("Initializing vector store with database connection...")
+    try:
+        vector_store = VectorStore(
+            db_host=db_host,
+            db_port=db_port,
+            db_name=db_name,
+            db_user=db_user,
+            db_password=db_password,
+            embedding_model=embedding_model
+        )
+        logger.info("✓ Vector store initialized successfully")
+    except Exception as e:
+        logger.error("✗ FATAL: Failed to initialize vector store")
+        logger.error(f"Error: {str(e)}")
+        logger.error(f"Database: {db_user}@{db_host}:{db_port}/{db_name}")
+        logger.error("")
+        logger.error("Troubleshooting steps:")
+        logger.error("1. Check if PostgreSQL container is running:")
+        logger.error("   docker-compose ps postgres-pgvector")
+        logger.error("")
+        logger.error("2. Check PostgreSQL logs:")
+        logger.error("   docker-compose logs postgres-pgvector")
+        logger.error("")
+        logger.error("3. Verify connection details in docker-compose.yml")
+        logger.error("")
+        logger.error("4. Ensure you're using a pgvector-enabled PostgreSQL image:")
+        logger.error("   pgvector/pgvector:pg14 or ankane/pgvector:v0.5.1")
+        raise
 
     # Initialize Bedrock runtime for LLM (optional - only for enhanced responses)
     try:
