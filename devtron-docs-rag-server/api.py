@@ -84,6 +84,33 @@ async def lifespan(app: FastAPI):
         logger.warning(f"AWS Bedrock not available: {e}. LLM responses will be disabled.")
         bedrock_runtime = None
 
+    # Auto-index documentation on first startup
+    auto_index = os.getenv("AUTO_INDEX_ON_STARTUP", "true").lower() == "true"
+    if auto_index and vector_store.needs_indexing():
+        logger.info("Database is empty. Starting automatic indexing...")
+        try:
+            # Sync docs from GitHub
+            changed_files = await doc_processor.sync_docs()
+            logger.info(f"Synced documentation: {len(changed_files)} files")
+
+            # Get all documents
+            documents = await doc_processor.get_all_documents()
+            logger.info(f"Processing {len(documents)} documents...")
+
+            # Index documents
+            if documents:
+                await vector_store.index_documents(documents)
+                logger.info(f"✓ Auto-indexing complete: {len(documents)} documents indexed")
+            else:
+                logger.warning("No documents found to index")
+        except Exception as e:
+            logger.error(f"Auto-indexing failed: {e}", exc_info=True)
+            logger.warning("Server will start but documentation is not indexed. Call /reindex endpoint manually.")
+    elif auto_index:
+        logger.info("Documentation already indexed, skipping auto-indexing")
+    else:
+        logger.info("Auto-indexing disabled (AUTO_INDEX_ON_STARTUP=false)")
+
     logger.info("Server initialization complete")
 
     yield
@@ -370,20 +397,3 @@ if __name__ == "__main__":
         port=port,
         reload=os.getenv("ENV", "production") == "development"
     )
-
-
-@app.post("/reindex", response_model=ReindexResponse)
-async def reindex_documentation(request: ReindexRequest, background_tasks: BackgroundTasks):
-    """
-    Re-index documentation from GitHub.
-
-    This endpoint syncs the latest documentation from GitHub and updates the vector database.
-    """
-    try:
-        logger.info(f"Starting re-index (force={request.force})...")
-
-        # Sync docs from GitHub
-        changed_files = await doc_processor.sync_docs()
-        logger.info(f"Synced documentation, {len(changed_files)} files changed")
-    except:
-        logger.error("Error syncing documentation")
