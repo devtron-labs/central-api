@@ -1,14 +1,47 @@
 # ============================================================================
-# Dockerfile for Devtron Documentation RAG Server
-# Optimized Python-only image for embedding-based document search
+# Multi-Stage Dockerfile for Devtron Documentation RAG Server
+# Optimized for minimal image size and fast builds
 # ============================================================================
 
-FROM python:3.11-slim
+# Stage 1: Builder - Install dependencies
+FROM python:3.12-slim AS builder
+
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        g++ \
+        git \
+        && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy and install Python dependencies
+COPY requirements.txt .
+
+# Install to user site-packages for easy copying
+RUN pip install --user --no-cache-dir -r requirements.txt && \
+    # Remove unnecessary files from installed packages
+    find /root/.local -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true && \
+    find /root/.local -type d -name "test" -exec rm -rf {} + 2>/dev/null || true && \
+    find /root/.local -type d -name "docs" -exec rm -rf {} + 2>/dev/null || true && \
+    find /root/.local -type f -name "*.pyc" -delete && \
+    find /root/.local -type f -name "*.pyo" -delete && \
+    find /root/.local -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find /root/.local -type f -name "*.c" -delete && \
+    find /root/.local -type f -name "*.pyx" -delete && \
+    find /root/.local -type f -name "*.md" -delete 2>/dev/null || true && \
+    find /root/.local -name "*.dist-info" -type d -exec sh -c 'rm -rf {}/RECORD {}/INSTALLER {}/direct_url.json' \; 2>/dev/null || true
+
+# ============================================================================
+# Stage 2: Runtime - Minimal production image
+FROM python:3.12-slim
 
 LABEL maintainer="Devtron Labs"
 LABEL description="Devtron Documentation RAG Server - Optimized for embeddings"
 
-# Install system dependencies
+# Install only runtime dependencies (no build tools)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -17,21 +50,23 @@ RUN apt-get update && \
         libgomp1 \
         && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf \
+        /var/lib/apt/lists/* \
+        /tmp/* \
+        /var/tmp/* \
+        /usr/share/doc/* \
+        /usr/share/man/* \
+        /usr/share/locale/*
+
+# Copy Python packages from builder
+COPY --from=builder /root/.local /root/.local
+
+# Set PATH to include user site-packages
+ENV PATH=/root/.local/bin:$PATH
 
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
-    # Clean up pip cache and unnecessary files
-    rm -rf /root/.cache/pip && \
-    find /usr/local/lib/python3.11 -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true && \
-    find /usr/local/lib/python3.11 -type d -name "test" -exec rm -rf {} + 2>/dev/null || true && \
-    find /usr/local/lib/python3.11 -type f -name "*.pyc" -delete && \
-    find /usr/local/lib/python3.11 -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-
-# Copy application code
+# Copy application code (only necessary files)
 COPY api.py doc_processor.py vector_store.py ./
 
 # Create necessary directories
@@ -40,23 +75,13 @@ RUN mkdir -p /data/devtron-docs
 # Environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    DOCS_PATH=/data/devtron-docs \
-    DOCS_REPO_URL=https://github.com/devtron-labs/devtron \
-    POSTGRES_HOST=localhost \
-    POSTGRES_PORT=5432 \
-    POSTGRES_DB=devtron_docs \
-    POSTGRES_USER=postgres \
-    POSTGRES_PASSWORD=postgres \
     TRANSFORMERS_CACHE=/tmp/transformers \
     HF_HOME=/tmp/huggingface \
-    TORCH_HOME=/tmp/torch
+    TORCH_HOME=/tmp/torch \
+    PIP_NO_CACHE_DIR=1
 
 # Expose port
 EXPOSE 8000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the application
 CMD ["python", "api.py"]
