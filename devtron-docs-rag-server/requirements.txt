@@ -6,11 +6,11 @@ uvicorn[standard]>=0.27.0
 psycopg2-binary>=2.9.9
 pgvector>=0.2.4
 
-# AWS Bedrock for LLM (optional - only for enhanced responses)
+# AWS Bedrock for LLM
 boto3>=1.34.0
 botocore>=1.34.0
 
-# Local Embeddings
+# Local Embeddings (supports both CPU and GPU)
 sentence-transformers>=2.2.2
 torch>=2.0.0
 
@@ -18,17 +18,5 @@ torch>=2.0.0
 gitpython>=3.1.40
 
 # Document Processing
-markdown>=3.5.0
-beautifulsoup4>=4.12.0
-langchain>=0.1.0
 langchain-text-splitters>=0.0.1
-
-# Configuration
-python-dotenv>=1.0.0
-
-# Data Validation
-pydantic>=2.5.0
-
-# Async HTTP
-aiohttp>=3.9.0
 
