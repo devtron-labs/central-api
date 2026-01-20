@@ -18,12 +18,13 @@ package api
 
 import (
 	"fmt"
-	"go.uber.org/zap"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 type DocsProxyHandler struct {
@@ -56,8 +57,8 @@ func NewDocsProxyHandler(logger *zap.SugaredLogger) *DocsProxyHandler {
 			req.URL.Path = "/"
 		}
 		req.Host = targetURL.Host
-		logger.Debugw("Proxying request to Python FastAPI", 
-			"original_path", req.URL.Path, 
+		logger.Infow("Proxying request to Python FastAPI",
+			"original_path", req.URL.Path,
 			"target", targetURL.String())
 	}
 
@@ -78,7 +79,6 @@ func NewDocsProxyHandler(logger *zap.SugaredLogger) *DocsProxyHandler {
 
 // ProxyRequest forwards the request to Python FastAPI server
 func (h *DocsProxyHandler) ProxyRequest(w http.ResponseWriter, r *http.Request) {
-	h.logger.Debugw("Proxying docs request", "method", r.Method, "path", r.URL.Path)
+	h.logger.Infow("Proxying docs request", "method", r.Method, "path", r.URL.Path)
 	h.proxy.ServeHTTP(w, r)
 }
-

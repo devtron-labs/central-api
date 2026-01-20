@@ -437,7 +437,6 @@ class VectorStore:
 
         except Exception as e:
             logger.error(f"✗ Search failed: {str(e)}")
-            logger.error(f"  Query: '{query}'")
             logger.error(f"  Error type: {type(e).__name__}")
             raise
 

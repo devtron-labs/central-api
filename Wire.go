@@ -61,9 +61,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(currency.CurrencyRestHandler), new(*currency.CurrencyRestHandlerImpl)),
 		currency.NewRouter,
 		wire.Bind(new(currency.Router), new(*currency.RouterImpl)),
-
-		// Docs RAG proxy handler
-		api.NewDocsProxyHandler,
 	)
 	return &App{}, nil
 }

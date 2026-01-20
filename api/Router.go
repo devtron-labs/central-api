@@ -27,20 +27,18 @@ import (
 )
 
 type MuxRouter struct {
-	logger           *zap.SugaredLogger
-	Router           *mux.Router
-	restHandler      RestHandler
-	currencyRouter   currency.Router
-	docsProxyHandler *DocsProxyHandler
+	logger         *zap.SugaredLogger
+	Router         *mux.Router
+	restHandler    RestHandler
+	currencyRouter currency.Router
 }
 
-func NewMuxRouter(logger *zap.SugaredLogger, restHandler RestHandler, currencyRouter currency.Router, docsProxyHandler *DocsProxyHandler) *MuxRouter {
+func NewMuxRouter(logger *zap.SugaredLogger, restHandler RestHandler, currencyRouter currency.Router) *MuxRouter {
 	return &MuxRouter{
-		logger:           logger,
-		Router:           mux.NewRouter(),
-		restHandler:      restHandler,
-		currencyRouter:   currencyRouter,
-		docsProxyHandler: docsProxyHandler,
+		logger:         logger,
+		Router:         mux.NewRouter(),
+		restHandler:    restHandler,
+		currencyRouter: currencyRouter,
 	}
 }
 
@@ -76,8 +74,4 @@ func (r MuxRouter) Init() {
 	currencyRouter := r.Router.PathPrefix("/currency").Subrouter()
 	// Initialize currency routes
 	r.currencyRouter.InitCurrencyRoutes(currencyRouter)
-
-	// Proxy all /docs/* requests to Python FastAPI server
-	// This handles: /docs/health, /docs/search, /docs/reindex
-	r.Router.PathPrefix("/docs").HandlerFunc(r.docsProxyHandler.ProxyRequest)
 }
