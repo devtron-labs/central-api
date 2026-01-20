@@ -27,9 +27,26 @@ class LocalEmbeddings:
             model_name: HuggingFace model name
         """
         logger.info(f"Loading embedding model: {model_name}")
-        self.model = SentenceTransformer(model_name)
-        self.dimension = self.model.get_sentence_embedding_dimension()
-        logger.info(f"Model loaded. Embedding dimension: {self.dimension}")
+        logger.info("This may take a few minutes on first run (downloading ~1.34GB model)...")
+        logger.info("Model will be cached for subsequent runs")
+
+        try:
+            import time
+            start_time = time.time()
+            self.model = SentenceTransformer(model_name)
+            load_time = time.time() - start_time
+
+            self.dimension = self.model.get_sentence_embedding_dimension()
+            logger.info(f"✓ Model loaded successfully in {load_time:.2f} seconds")
+            logger.info(f"  Embedding dimension: {self.dimension}")
+        except Exception as e:
+            logger.error(f"✗ Failed to load embedding model: {str(e)}")
+            logger.error(f"  Model: {model_name}")
+            logger.error("  This could be due to:")
+            logger.error("    - Network issues downloading the model")
+            logger.error("    - Insufficient disk space")
+            logger.error("    - Insufficient memory")
+            raise
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """

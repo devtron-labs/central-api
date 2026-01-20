@@ -34,6 +34,12 @@ RUN pip install --user --no-cache-dir -r requirements.txt && \
     find /root/.local -type f -name "*.md" -delete 2>/dev/null || true && \
     find /root/.local -name "*.dist-info" -type d -exec sh -c 'rm -rf {}/RECORD {}/INSTALLER {}/direct_url.json' \; 2>/dev/null || true
 
+# Pre-download embedding model to cache it in the image
+# This prevents downloading ~1.34GB on every container startup
+COPY download_model.py .
+RUN python download_model.py BAAI/bge-large-en-v1.5 && \
+    rm download_model.py
+
 # ============================================================================
 # Stage 2: Runtime - Minimal production image
 FROM python:3.12-slim
@@ -54,6 +60,9 @@ RUN apt-get update && \
 
 # Copy Python packages from builder
 COPY --from=builder /root/.local /root/.local
+
+# Copy pre-downloaded model cache from builder
+COPY --from=builder /root/.cache /root/.cache
 
 # Set PATH to include user site-packages
 ENV PATH=/root/.local/bin:$PATH
