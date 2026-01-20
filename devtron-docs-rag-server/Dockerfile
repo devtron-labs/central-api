@@ -42,7 +42,15 @@ LABEL maintainer="Devtron Labs"
 LABEL description="Devtron Documentation RAG Server - Optimized for embeddings"
 
 # Install only runtime dependencies (no build tools)
-RUN apt-get update && apt-get install -y gcc libpq-dev curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        git \
+        curl \
+        libpq-dev \
+        && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Copy Python packages from builder
 COPY --from=builder /root/.local /root/.local
