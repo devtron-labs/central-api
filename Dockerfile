@@ -30,10 +30,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY devtron-docs-rag-server/api.py .
 COPY devtron-docs-rag-server/doc_processor.py .
 COPY devtron-docs-rag-server/vector_store.py .
-COPY devtron-docs-rag-server/run_migrations.py .
-
-# Copy migration scripts from root
-COPY scripts /app/scripts
 
 # Create directories for data persistence
 RUN mkdir -p /data/devtron-docs
