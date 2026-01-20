@@ -54,13 +54,14 @@ FROM python:3.11-slim
 LABEL maintainer="Devtron Labs"
 LABEL description="Central API with RAG Documentation Server - Optimized"
 
-# Install only essential runtime dependencies
+# Install only essential runtime dependencies + curl for debugging
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         git \
         supervisor \
         libgomp1 \
+        curl \
         && \
     apt-get clean && \
     rm -rf \

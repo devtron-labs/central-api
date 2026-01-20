@@ -13,8 +13,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-import boto3
-from botocore.config import Config
 
 from doc_processor import DocumentationProcessor
 from vector_store import VectorStore
@@ -29,20 +27,18 @@ logger = logging.getLogger(__name__)
 # Global instances
 doc_processor: Optional[DocumentationProcessor] = None
 vector_store: Optional[VectorStore] = None
-bedrock_runtime = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize and cleanup resources."""
-    global doc_processor, vector_store, bedrock_runtime
+    global doc_processor, vector_store
 
     logger.info("Initializing Devtron Documentation API Server...")
 
     # Configuration from environment
     docs_repo_url = os.getenv("DOCS_REPO_URL", "https://github.com/devtron-labs/devtron")
     docs_path = os.getenv("DOCS_PATH", "./devtron-docs")
-    aws_region = os.getenv("AWS_REGION", "us-east-1")
 
     # Embedding model configuration
     embedding_model = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
@@ -97,18 +93,6 @@ async def lifespan(app: FastAPI):
         logger.error("   pgvector/pgvector:pg14 or ankane/pgvector:v0.5.1")
         raise
 
-    # Initialize Bedrock runtime for LLM (optional - only for enhanced responses)
-    try:
-        bedrock_runtime = boto3.client(
-            service_name='bedrock-runtime',
-            region_name=aws_region,
-            config=Config(read_timeout=300)
-        )
-        logger.info("AWS Bedrock initialized for LLM responses")
-    except Exception as e:
-        logger.warning(f"AWS Bedrock not available: {e}. LLM responses will be disabled.")
-        bedrock_runtime = None
-
     # Check if database needs indexing
     if vector_store.needs_indexing():
         logger.warning("⚠️  Database is empty - no documents indexed")
@@ -148,15 +132,6 @@ app.add_middleware(
 class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query", min_length=1)
     max_results: int = Field(5, description="Maximum number of results", ge=1, le=20)
-    use_llm: bool = Field(
-        False,
-        description="Whether to use LLM for enhanced response. "
-                    "Recommended: false for MCP tools (let caller handle LLM to avoid double token usage)"
-    )
-    llm_model: str = Field(
-        "anthropic.claude-3-haiku-20240307-v1:0",
-        description="Bedrock model ID (only used if use_llm=true)"
-    )
 
 
 class SearchResult(BaseModel):
@@ -170,7 +145,6 @@ class SearchResult(BaseModel):
 class SearchResponse(BaseModel):
     query: str
     results: List[SearchResult]
-    llm_response: Optional[str] = None
     total_results: int
 
 
@@ -302,7 +276,7 @@ async def search_documentation(request: SearchRequest):
     """
     Search documentation using semantic search.
 
-    Optionally uses LLM to generate an enhanced response based on search results.
+    Returns relevant documentation chunks based on vector similarity.
     """
     try:
         logger.info(f"Searching for: {request.query}")
@@ -311,29 +285,15 @@ async def search_documentation(request: SearchRequest):
         if vector_store.needs_indexing():
             raise HTTPException(
                 status_code=400,
-                detail="Documentation not indexed. Please call /reindex first."
+                detail="Documentation not indexed. Please call /index first."
             )
 
         # Perform vector search
         results = await vector_store.search(request.query, max_results=request.max_results)
 
-        llm_response = None
-        if request.use_llm and results:
-            if bedrock_runtime is None:
-                logger.warning("LLM requested but AWS Bedrock not available")
-                llm_response = "LLM responses are not available. AWS Bedrock is not configured."
-            else:
-                # Generate LLM response using search results as context
-                llm_response = await generate_llm_response(
-                    query=request.query,
-                    search_results=results,
-                    model_id=request.llm_model
-                )
-
         return SearchResponse(
             query=request.query,
             results=[SearchResult(**r) for r in results],
-            llm_response=llm_response,
             total_results=len(results)
         )
 
@@ -342,97 +302,6 @@ async def search_documentation(request: SearchRequest):
     except Exception as e:
         logger.error(f"Search failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
-
-
-async def generate_llm_response(query: str, search_results: List[dict], model_id: str) -> str:
-    """
-    Generate LLM response using search results as context.
-
-    Args:
-        query: User's search query
-        search_results: List of search results from vector store
-        model_id: Bedrock model ID to use
-
-    Returns:
-        LLM-generated response
-    """
-    try:
-        # Build context from search results
-        context_parts = []
-        for i, result in enumerate(search_results, 1):
-            context_parts.append(
-                f"[Document {i}]\n"
-                f"Title: {result['title']}\n"
-                f"Source: {result['source']}\n"
-                f"Content:\n{result['content']}\n"
-            )
-
-        context = "\n---\n".join(context_parts)
-
-        # Build prompt
-        prompt = f"""You are a helpful assistant for Devtron documentation. Answer the user's question based on the provided documentation context.
-
-Documentation Context:
-{context}
-
-User Question: {query}
-
-Instructions:
-- Answer based ONLY on the provided documentation context
-- Be concise and accurate
-- If the context doesn't contain enough information, say so
-- Include relevant code examples or commands if present in the context
-- Format your response in markdown
-
-Answer:"""
-
-        # Call Bedrock
-        if "claude" in model_id.lower():
-            # Claude models
-            body = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 2000,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                "temperature": 0.7
-            }
-
-            response = bedrock_runtime.invoke_model(
-                modelId=model_id,
-                body=str.encode(str(body))
-            )
-
-            import json
-            response_body = json.loads(response['body'].read())
-            return response_body['content'][0]['text']
-
-        else:
-            # Other models (Titan, etc.)
-            body = {
-                "inputText": prompt,
-                "textGenerationConfig": {
-                    "maxTokenCount": 2000,
-                    "temperature": 0.7,
-                    "topP": 0.9
-                }
-            }
-
-            response = bedrock_runtime.invoke_model(
-                modelId=model_id,
-                body=str.encode(str(body))
-            )
-
-            import json
-            response_body = json.loads(response['body'].read())
-            return response_body['results'][0]['outputText']
-
-    except Exception as e:
-        logger.error(f"LLM generation failed: {e}", exc_info=True)
-        return f"Error generating LLM response: {str(e)}"
 
 
 if __name__ == "__main__":
