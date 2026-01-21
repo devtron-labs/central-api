@@ -78,9 +78,10 @@ RUN mkdir -p /data/devtron-docs
 # Environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    TRANSFORMERS_CACHE=/tmp/transformers \
-    HF_HOME=/tmp/huggingface \
-    TORCH_HOME=/tmp/torch \
+    TRANSFORMERS_CACHE=/root/.cache/huggingface \
+    HF_HOME=/root/.cache/huggingface \
+    TORCH_HOME=/root/.cache/torch \
+    SENTENCE_TRANSFORMERS_HOME=/root/.cache/torch/sentence_transformers \
     PIP_NO_CACHE_DIR=1
 
 # Expose port

@@ -33,14 +33,10 @@ vector_store: Optional[VectorStore] = None
 async def lifespan(app: FastAPI):
     """Initialize and cleanup resources."""
     global doc_processor, vector_store
-
     logger.info("Initializing Devtron Documentation API Server...")
-
     # Configuration from environment
     docs_repo_url = os.getenv("DOCS_REPO_URL", "https://github.com/devtron-labs/devtron")
     docs_path = os.getenv("DOCS_PATH", "./devtron-docs")
-
-    # Embedding model configuration
     embedding_model = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
     chunk_size = int(os.getenv("CHUNK_SIZE", "1000"))
     chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "0"))
@@ -62,45 +58,32 @@ async def lifespan(app: FastAPI):
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap
     )
-    logger.info("✓ Documentation processor initialized")
-
+    logger.info("Documentation processor initialized")
     logger.info("Initializing vector store with database connection...")
-    try:
-        vector_store = VectorStore(
-            db_host=db_host,
-            db_port=db_port,
-            db_name=db_name,
-            db_user=db_user,
-            db_password=db_password,
-            embedding_model=embedding_model
-        )
-        logger.info("✓ Vector store initialized successfully")
-    except Exception as e:
-        logger.error("✗ FATAL: Failed to initialize vector store")
-        logger.error(f"Error: {str(e)}")
-        logger.error(f"Database: {db_user}@{db_host}:{db_port}/{db_name}")
-        logger.error("")
-        logger.error("Troubleshooting steps:")
-        logger.error("1. Check if PostgreSQL container is running:")
-        logger.error("   docker-compose ps postgres-pgvector")
-        logger.error("")
-        logger.error("2. Check PostgreSQL logs:")
-        logger.error("   docker-compose logs postgres-pgvector")
-        logger.error("")
-        logger.error("3. Verify connection details in docker-compose.yml")
-        logger.error("")
-        logger.error("4. Ensure you're using a pgvector-enabled PostgreSQL image:")
-        logger.error("   pgvector/pgvector:pg14 or ankane/pgvector:v0.5.1")
-        raise
+    vector_store = VectorStore(
+        db_host=db_host,
+        db_port=db_port,
+        db_name=db_name,
+        db_user=db_user,
+        db_password=db_password,
+        embedding_model=embedding_model
+    )
+    logger.info("Vector store initialized successfully")
 
     # Check if database needs indexing
     if vector_store.needs_indexing():
-        logger.warning("⚠️  Database is empty - no documents indexed")
-        logger.warning("   Call POST /docs/index to index documentation")
+        logger.info("⚠️  Database is empty - call POST /docs/index to index documentation")
     else:
-        logger.info("✓ Database already has indexed documents")
+        conn = vector_store.pool.getconn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM documents;")
+                doc_count = cur.fetchone()[0]
+                logger.info(f"✓ Ready to serve queries ({doc_count} chunks indexed)")
+        finally:
+            vector_store.pool.putconn(conn)
 
-    logger.info("Server initialization complete")
+    logger.info("✓ Server startup complete")
 
     yield
 

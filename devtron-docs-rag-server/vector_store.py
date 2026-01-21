@@ -27,25 +27,12 @@ class LocalEmbeddings:
             model_name: HuggingFace model name
         """
         logger.info(f"Loading embedding model: {model_name}")
-        logger.info("This may take a few minutes on first run (downloading ~1.34GB model)...")
-        logger.info("Model will be cached for subsequent runs")
-
         try:
-            import time
-            start_time = time.time()
             self.model = SentenceTransformer(model_name)
-            load_time = time.time() - start_time
-
             self.dimension = self.model.get_sentence_embedding_dimension()
-            logger.info(f"✓ Model loaded successfully in {load_time:.2f} seconds")
-            logger.info(f"  Embedding dimension: {self.dimension}")
+            logger.info(f"✓ Embedding model loaded (dimension: {self.dimension})")
         except Exception as e:
             logger.error(f"✗ Failed to load embedding model: {str(e)}")
-            logger.error(f"  Model: {model_name}")
-            logger.error("  This could be due to:")
-            logger.error("    - Network issues downloading the model")
-            logger.error("    - Insufficient disk space")
-            logger.error("    - Insufficient memory")
             raise
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
@@ -102,17 +89,9 @@ class VectorStore:
             db_password: Database password
             embedding_model: HuggingFace model name for embeddings
         """
-        logger.info("Initializing Vector Store with PostgreSQL pgvector")
-        logger.info(f"Database Configuration:")
-        logger.info(f"  Host: {db_host}")
-        logger.info(f"  Port: {db_port}")
-        logger.info(f"  Database: {db_name}")
-        logger.info(f"  User: {db_user}")
-        logger.info(f"  Embedding Model: {embedding_model}")
-
         # Initialize connection pool
         try:
-            logger.info("Creating database connection pool...")
+            logger.info(f"Connecting to database: {db_host}:{db_port}/{db_name}")
             self.pool = SimpleConnectionPool(
                 minconn=1,
                 maxconn=10,
@@ -122,47 +101,34 @@ class VectorStore:
                 user=db_user,
                 password=db_password
             )
-            logger.info("✓ Database connection pool created successfully")
 
             # Test connection
-            logger.info("Testing database connection...")
             conn = self.pool.getconn()
             try:
                 with conn.cursor() as cur:
                     cur.execute("SELECT version();")
                     version = cur.fetchone()[0]
-                    logger.info(f"✓ Database connection successful!")
-                    logger.info(f"  PostgreSQL version: {version}")
+                    logger.info(f"✓ Database connected successfully")
             finally:
                 self.pool.putconn(conn)
 
         except psycopg2.OperationalError as e:
-            logger.error("✗ Failed to connect to PostgreSQL database")
-            logger.error(f"  Error: {str(e)}")
-            logger.error(f"  Connection details: {db_user}@{db_host}:{db_port}/{db_name}")
-            logger.error("  Possible issues:")
-            logger.error("    - PostgreSQL server is not running")
-            logger.error("    - Incorrect host or port")
-            logger.error("    - Database does not exist")
-            logger.error("    - Invalid credentials")
-            logger.error("    - Network/firewall issues")
+            logger.error(f"✗ Database connection failed: {str(e)}")
+            logger.error(f"Connection: {db_user}@{db_host}:{db_port}/{db_name}")
             raise
         except Exception as e:
-            logger.error(f"✗ Unexpected error during database connection: {str(e)}")
-            logger.error(f"  Error type: {type(e).__name__}")
+            logger.error(f"✗ Unexpected error: {str(e)}")
             raise
 
         # Initialize local embeddings
         logger.info("Loading embedding model...")
         self.embeddings = LocalEmbeddings(model_name=embedding_model)
         self.embedding_dimension = self.embeddings.dimension
-        logger.info(f"✓ Embedding model loaded (dimension: {self.embedding_dimension})")
 
         # Initialize database schema
         logger.info("Initializing database schema...")
         self._init_database()
-
-        logger.info("✓ Vector store initialization complete!")
+        logger.info("✓ Vector store ready")
 
     def _init_database(self):
         """Initialize database schema with pgvector extension."""
@@ -170,121 +136,84 @@ class VectorStore:
         try:
             with conn.cursor() as cur:
                 # Enable pgvector extension
-                try:
-                    logger.info("Checking pgvector extension...")
-                    cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-                    logger.info("✓ pgvector extension is available")
-                except psycopg2.Error as e:
-                    logger.error("✗ Failed to enable pgvector extension")
-                    logger.error(f"  Error: {str(e)}")
-                    logger.error("  Make sure you're using a PostgreSQL image with pgvector support")
-                    logger.error("  Recommended: pgvector/pgvector:pg14 or ankane/pgvector:v0.5.1")
-                    raise
+                cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
 
                 # Create documents table with dynamic embedding dimension
-                try:
-                    logger.info(f"Creating documents table (embedding dimension: {self.embedding_dimension})...")
-                    cur.execute(f"""
-                        CREATE TABLE IF NOT EXISTS documents (
-                            id TEXT PRIMARY KEY,
-                            title TEXT NOT NULL,
-                            source TEXT NOT NULL,
-                            header TEXT,
-                            content TEXT NOT NULL,
-                            chunk_index INTEGER,
-                            embedding vector({self.embedding_dimension}),
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                        );
-                    """)
-                    logger.info("✓ Documents table ready")
-                except psycopg2.Error as e:
-                    logger.error("✗ Failed to create documents table")
-                    logger.error(f"  Error: {str(e)}")
-                    raise
+                cur.execute(f"""
+                    CREATE TABLE IF NOT EXISTS documents (
+                        id TEXT PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        source TEXT NOT NULL,
+                        header TEXT,
+                        content TEXT NOT NULL,
+                        chunk_index INTEGER,
+                        embedding vector({self.embedding_dimension}),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
 
                 # Create index for vector similarity search
-                try:
-                    logger.info("Creating vector similarity index (IVFFlat)...")
-                    cur.execute("""
-                        CREATE INDEX IF NOT EXISTS documents_embedding_idx
-                        ON documents USING ivfflat (embedding vector_cosine_ops)
-                        WITH (lists = 100);
-                    """)
-                    logger.info("✓ Vector similarity index ready")
-                except psycopg2.Error as e:
-                    logger.error("✗ Failed to create vector index")
-                    logger.error(f"  Error: {str(e)}")
-                    raise
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS documents_embedding_idx
+                    ON documents USING ivfflat (embedding vector_cosine_ops)
+                    WITH (lists = 100);
+                """)
 
                 # Create index for source lookups
-                try:
-                    logger.info("Creating source index...")
-                    cur.execute("""
-                        CREATE INDEX IF NOT EXISTS documents_source_idx
-                        ON documents(source);
-                    """)
-                    logger.info("✓ Source index ready")
-                except psycopg2.Error as e:
-                    logger.error("✗ Failed to create source index")
-                    logger.error(f"  Error: {str(e)}")
-                    raise
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS documents_source_idx
+                    ON documents(source);
+                """)
 
                 conn.commit()
-                logger.info("✓ Database schema initialization complete")
 
                 # Log table statistics
                 cur.execute("SELECT COUNT(*) FROM documents;")
                 doc_count = cur.fetchone()[0]
-                logger.info(f"  Current document count: {doc_count}")
+                logger.info(f"✓ Schema initialized ({doc_count} documents indexed)")
 
-        except Exception as e:
-            logger.error(f"✗ Database initialization failed: {str(e)}")
+        except psycopg2.Error as e:
+            logger.error(f"✗ Database schema initialization failed: {str(e)}")
             raise
         finally:
             self.pool.putconn(conn)
     
     def needs_indexing(self) -> bool:
         """Check if the database needs initial indexing."""
-        logger.info("Checking if database needs indexing...")
         conn = self.pool.getconn()
         try:
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM documents;")
                 count = cur.fetchone()[0]
-
-                if count == 0:
-                    logger.info("✓ Database is empty - indexing needed")
-                else:
-                    logger.info(f"✓ Database already has {count} documents - indexing not needed")
-
                 return count == 0
-        except Exception as e:
-            logger.error(f"✗ Failed to check document count: {str(e)}")
-            raise
         finally:
             self.pool.putconn(conn)
     
     async def index_documents(self, documents: List[Dict[str, Any]]) -> None:
         """
         Index documents into the vector store.
-        
+
         Args:
             documents: List of document dictionaries
         """
         if not documents:
             logger.warning("No documents to index")
             return
-        
-        logger.info(f"Indexing {len(documents)} documents...")
-        
+
+        logger.info(f"Starting indexing: {len(documents)} documents")
+
         # Process documents in batches
         batch_size = 10
+        total_batches = (len(documents) + batch_size - 1) // batch_size
+
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i + batch_size]
+            batch_num = (i // batch_size) + 1
+            logger.info(f"Processing batch {batch_num}/{total_batches}")
             await self._index_batch(batch)
-        
-        logger.info("Indexing complete")
+
+        logger.info(f"✓ Indexing complete: {len(documents)} documents")
 
     async def _index_batch(self, documents: List[Dict[str, Any]]) -> None:
         """Index a batch of documents."""
@@ -356,7 +285,7 @@ class VectorStore:
                 )
 
                 conn.commit()
-                logger.info(f"Indexed batch of {len(rows)} chunks")
+                logger.info(f"✓ Indexed {len(rows)} chunks")
         finally:
             self.pool.putconn(conn)
 
@@ -401,61 +330,47 @@ class VectorStore:
         Returns:
             List of search results with metadata
         """
-        logger.info(f"Searching for: '{query}' (max_results: {max_results})")
+        # Generate query embedding
+        query_embedding = self.embeddings.embed_query(query)
 
+        # Search in PostgreSQL using cosine similarity
+        conn = self.pool.getconn()
         try:
-            # Generate query embedding
-            logger.info("Generating query embedding...")
-            query_embedding = self.embeddings.embed_query(query)
-            logger.info(f"✓ Query embedding generated (dimension: {len(query_embedding)})")
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        title,
+                        source,
+                        header,
+                        content,
+                        1 - (embedding <=> %s::vector) as similarity
+                    FROM documents
+                    ORDER BY embedding <=> %s::vector
+                    LIMIT %s
+                    """,
+                    (query_embedding, query_embedding, max_results)
+                )
 
-            # Search in PostgreSQL using cosine similarity
-            logger.info("Executing vector similarity search...")
-            conn = self.pool.getconn()
-            try:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        SELECT
-                            id,
-                            title,
-                            source,
-                            header,
-                            content,
-                            1 - (embedding <=> %s::vector) as similarity
-                        FROM documents
-                        ORDER BY embedding <=> %s::vector
-                        LIMIT %s
-                        """,
-                        (query_embedding, query_embedding, max_results)
-                    )
+                results = cur.fetchall()
 
-                    results = cur.fetchall()
+                # Format results
+                formatted_results = []
+                for row in results:
+                    formatted_results.append({
+                        'id': row[0],
+                        'title': row[1],
+                        'source': row[2],
+                        'header': row[3] or '',
+                        'content': row[4],
+                        'score': float(row[5])
+                    })
 
-                    # Format results
-                    formatted_results = []
-                    for row in results:
-                        formatted_results.append({
-                            'id': row[0],
-                            'title': row[1],
-                            'source': row[2],
-                            'header': row[3] or '',
-                            'content': row[4],
-                            'score': float(row[5])
-                        })
-
-                    logger.info(f"✓ Found {len(formatted_results)} results")
-                    if formatted_results:
-                        logger.info(f"  Top result: '{formatted_results[0]['title']}' (score: {formatted_results[0]['score']:.4f})")
-
-                    return formatted_results
-            finally:
-                self.pool.putconn(conn)
-
-        except Exception as e:
-            logger.error(f"✗ Search failed: {str(e)}")
-            logger.error(f"  Error type: {type(e).__name__}")
-            raise
+                logger.info(f"Search: '{query}' -> {len(formatted_results)} results")
+                return formatted_results
+        finally:
+            self.pool.putconn(conn)
 
     def reset(self) -> None:
         """Reset the vector store (delete all data)."""
