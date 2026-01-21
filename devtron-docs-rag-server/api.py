@@ -35,8 +35,8 @@ async def lifespan(app: FastAPI):
     global doc_processor, vector_store
     logger.info("Initializing Devtron Documentation API Server...")
     # Configuration from environment
-    docs_repo_url = os.getenv("DOCS_REPO_URL", "https://github.com/devtron-labs/devtron")
-    docs_path = os.getenv("DOCS_PATH", "./devtron-docs")
+    docs_repo_url = os.getenv("DOCS_REPO_URL", "https://github.com/devtron-labs/devtron-documentation")
+    docs_path = os.getenv("DOCS_PATH", "./docs")
     embedding_model = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
     chunk_size = int(os.getenv("CHUNK_SIZE", "1000"))
     chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "0"))
