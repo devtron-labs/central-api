@@ -6,6 +6,12 @@
 # Stage 1: Builder - Install dependencies
 FROM python:3.12-slim AS builder
 
+# Set cache directories BEFORE downloading anything
+ENV TRANSFORMERS_CACHE=/root/.cache/huggingface \
+    HF_HOME=/root/.cache/huggingface \
+    TORCH_HOME=/root/.cache/torch \
+    SENTENCE_TRANSFORMERS_HOME=/root/.cache/torch/sentence_transformers
+
 # Install build dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -38,7 +44,10 @@ RUN pip install --user --no-cache-dir -r requirements.txt && \
 # This prevents downloading ~1.34GB on every container startup
 COPY download_model.py .
 RUN python download_model.py BAAI/bge-large-en-v1.5 && \
-    rm download_model.py
+    rm download_model.py && \
+    echo "Verifying model cache..." && \
+    ls -lah /root/.cache/torch/sentence_transformers/ && \
+    echo "Model cache verified!"
 
 # ============================================================================
 # Stage 2: Runtime - Minimal production image
@@ -82,6 +91,8 @@ ENV PYTHONUNBUFFERED=1 \
     HF_HOME=/root/.cache/huggingface \
     TORCH_HOME=/root/.cache/torch \
     SENTENCE_TRANSFORMERS_HOME=/root/.cache/torch/sentence_transformers \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1 \
     PIP_NO_CACHE_DIR=1
 
 # Expose port

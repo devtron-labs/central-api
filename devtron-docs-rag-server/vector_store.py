@@ -4,6 +4,7 @@ Vector Store using PostgreSQL pgvector and Local Embeddings (BAAI/bge-large-en-v
 
 import logging
 import json
+import os
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import hashlib
@@ -27,12 +28,23 @@ class LocalEmbeddings:
             model_name: HuggingFace model name
         """
         logger.info(f"Loading embedding model: {model_name}")
+
+        # Verify cache directory exists
+        cache_dir = os.getenv('SENTENCE_TRANSFORMERS_HOME')
+        if cache_dir and os.path.exists(cache_dir):
+            logger.info(f"Using cached model from: {cache_dir}")
+        else:
+            logger.warning(f"Cache directory not found: {cache_dir}")
+
         try:
+            # Load model - it will use SENTENCE_TRANSFORMERS_HOME env var automatically
             self.model = SentenceTransformer(model_name)
             self.dimension = self.model.get_sentence_embedding_dimension()
             logger.info(f"✓ Embedding model loaded (dimension: {self.dimension})")
         except Exception as e:
             logger.error(f"✗ Failed to load embedding model: {str(e)}")
+            logger.error(f"Cache directory: {cache_dir}")
+            logger.error(f"Cache exists: {os.path.exists(cache_dir) if cache_dir else 'N/A'}")
             raise
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
