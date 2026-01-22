@@ -59,7 +59,15 @@ class LocalEmbeddings:
         """
         # Add instruction prefix for better retrieval (recommended by BGE)
         texts_with_prefix = [f"passage: {text}" for text in texts]
-        embeddings = self.model.encode(texts_with_prefix, show_progress_bar=False)
+
+        # Use smaller batch size for CPU to avoid memory issues and provide progress
+        # batch_size=8 is a good balance between speed and memory on CPU
+        embeddings = self.model.encode(
+            texts_with_prefix,
+            show_progress_bar=False,
+            batch_size=8,
+            convert_to_numpy=True
+        )
         return embeddings.tolist()
 
     def embed_query(self, text: str) -> List[float]:
@@ -215,14 +223,15 @@ class VectorStore:
 
         logger.info(f"Starting indexing: {len(documents)} documents")
 
-        # Process documents in batches
-        batch_size = 10
+        # Process documents in smaller batches to avoid timeout
+        # Reduced from 10 to 5 to process fewer chunks at once
+        batch_size = 5
         total_batches = (len(documents) + batch_size - 1) // batch_size
 
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i + batch_size]
             batch_num = (i // batch_size) + 1
-            logger.info(f"Processing batch {batch_num}/{total_batches}")
+            logger.info(f"Processing batch {batch_num}/{total_batches} (docs {i+1}-{min(i+batch_size, len(documents))})")
             await self._index_batch(batch)
 
         logger.info(f"✓ Indexing complete: {len(documents)} documents")
@@ -254,50 +263,62 @@ class VectorStore:
                     'chunk_index': idx
                 })
 
-        # Generate embeddings
-        logger.info(f"Generating embeddings for {len(rows)} chunks...")
-        texts = [row['content'] for row in rows]
-        embeddings = self.embeddings.embed_documents(texts)
+        logger.info(f"Processing {len(rows)} chunks from {len(documents)} documents")
 
-        # Insert into database
+        # Process chunks in smaller sub-batches to avoid timeout
+        # Embedding generation is CPU-intensive, so we process 20 chunks at a time
+        chunk_batch_size = 20
+        total_chunks = len(rows)
+
         conn = self.pool.getconn()
         try:
-            with conn.cursor() as cur:
-                # Prepare data for batch insert
-                values = [
-                    (
-                        row['id'],
-                        row['title'],
-                        row['source'],
-                        row['header'],
-                        row['content'],
-                        row['chunk_index'],
-                        embeddings[i]
+            for chunk_start in range(0, total_chunks, chunk_batch_size):
+                chunk_end = min(chunk_start + chunk_batch_size, total_chunks)
+                chunk_batch = rows[chunk_start:chunk_end]
+
+                # Generate embeddings for this sub-batch
+                logger.info(f"  Generating embeddings for chunks {chunk_start+1}-{chunk_end}/{total_chunks}...")
+                texts = [row['content'] for row in chunk_batch]
+                embeddings = self.embeddings.embed_documents(texts)
+
+                # Insert into database
+                with conn.cursor() as cur:
+                    # Prepare data for batch insert
+                    values = [
+                        (
+                            chunk_batch[i]['id'],
+                            chunk_batch[i]['title'],
+                            chunk_batch[i]['source'],
+                            chunk_batch[i]['header'],
+                            chunk_batch[i]['content'],
+                            chunk_batch[i]['chunk_index'],
+                            embeddings[i]
+                        )
+                        for i in range(len(chunk_batch))
+                    ]
+
+                    # Batch insert
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO documents
+                        (id, title, source, header, content, chunk_index, embedding)
+                        VALUES %s
+                        ON CONFLICT (id) DO UPDATE SET
+                            title = EXCLUDED.title,
+                            source = EXCLUDED.source,
+                            header = EXCLUDED.header,
+                            content = EXCLUDED.content,
+                            chunk_index = EXCLUDED.chunk_index,
+                            embedding = EXCLUDED.embedding,
+                            updated_at = CURRENT_TIMESTAMP
+                        """,
+                        values
                     )
-                    for i, row in enumerate(rows)
-                ]
+                    conn.commit()
+                    logger.info(f"  ✓ Stored {len(chunk_batch)} chunks in database")
 
-                # Batch insert
-                execute_values(
-                    cur,
-                    """
-                    INSERT INTO documents
-                    (id, title, source, header, content, chunk_index, embedding)
-                    VALUES %s
-                    ON CONFLICT (id) DO UPDATE SET
-                        title = EXCLUDED.title,
-                        source = EXCLUDED.source,
-                        header = EXCLUDED.header,
-                        content = EXCLUDED.content,
-                        chunk_index = EXCLUDED.chunk_index,
-                        embedding = EXCLUDED.embedding,
-                        updated_at = CURRENT_TIMESTAMP
-                    """,
-                    values
-                )
-
-                conn.commit()
-                logger.info(f"✓ Indexed {len(rows)} chunks")
+            logger.info(f"✓ Batch complete: {total_chunks} chunks indexed")
         finally:
             self.pool.putconn(conn)
 
