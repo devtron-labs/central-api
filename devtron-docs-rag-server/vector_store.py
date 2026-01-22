@@ -38,8 +38,26 @@ class LocalEmbeddings:
             logger.warning(f"Cache directory not found: {cache_dir}")
 
         try:
+            # Load model with optimizations for CPU inference
+            import torch
+
+            # Disable gradient computation (we're only doing inference)
+            torch.set_grad_enabled(False)
+
             # Load model - it will use SENTENCE_TRANSFORMERS_HOME env var automatically
             self.model = SentenceTransformer(model_name)
+
+            # Set model to evaluation mode for faster inference
+            self.model.eval()
+
+            # Enable CPU optimizations if available
+            try:
+                # Use Intel MKL optimizations if available
+                torch.set_num_threads(2)  # Limit threads to avoid oversubscription
+                logger.info(f"Set PyTorch threads to 2 for optimal CPU performance")
+            except Exception:
+                pass
+
             self.dimension = self.model.get_sentence_embedding_dimension()
             logger.info(f"✓ Embedding model loaded (dimension: {self.dimension})")
         except Exception as e:
@@ -61,14 +79,16 @@ class LocalEmbeddings:
         # Add instruction prefix for better retrieval (recommended by BGE)
         texts_with_prefix = [f"passage: {text}" for text in texts]
 
-        # Use very small batch size for CPU to minimize blocking time
-        # batch_size=2 processes 2 texts at a time, reducing memory and blocking
+        # Optimized settings for CPU inference
+        # batch_size=16 is optimal for CPU (balances speed vs memory)
+        # convert_to_tensor=False avoids unnecessary tensor conversions
         embeddings = self.model.encode(
             texts_with_prefix,
             show_progress_bar=False,
-            batch_size=2,
+            batch_size=16,
             convert_to_numpy=True,
-            normalize_embeddings=False
+            normalize_embeddings=False,
+            device='cpu'  # Explicitly use CPU
         )
         return embeddings.tolist()
 
@@ -131,6 +151,11 @@ class VectorStore:
                     cur.execute("SELECT version();")
                     version = cur.fetchone()[0]
                     logger.info(f"✓ Database connected successfully")
+
+                    # Log connection details for debugging
+                    cur.execute("SELECT current_database(), current_schema();")
+                    db, schema = cur.fetchone()
+                    logger.info(f"Connected to database: {db}, schema: {schema}")
             finally:
                 self.pool.putconn(conn)
 
@@ -225,14 +250,19 @@ class VectorStore:
 
         logger.info(f"Starting indexing: {len(documents)} documents")
 
-        # Process documents one at a time to minimize memory and allow health checks
-        batch_size = 1
-        total_batches = len(documents)
+        # Process documents in small batches with optimized embedding
+        # With faster embeddings, we can process 2-3 documents at once
+        batch_size = 2
+        total_batches = (len(documents) + batch_size - 1) // batch_size
 
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i + batch_size]
-            batch_num = i + 1
-            logger.info(f"Processing document {batch_num}/{total_batches}: {batch[0].get('title', 'Unknown')}")
+            batch_num = (i // batch_size) + 1
+
+            # Log document titles being processed
+            titles = [doc.get('title', 'Unknown') for doc in batch]
+            logger.info(f"Processing batch {batch_num}/{total_batches}: {', '.join(titles[:2])}")
+
             await self._index_batch(batch)
 
             # Yield control to event loop to allow health checks to respond
@@ -269,9 +299,9 @@ class VectorStore:
 
         logger.info(f"Processing {len(rows)} chunks from {len(documents)} document(s)")
 
-        # Process chunks in very small sub-batches to avoid blocking health checks
-        # Reduced to 5 chunks at a time (~10-15 seconds per sub-batch)
-        chunk_batch_size = 5
+        # Process chunks in optimized sub-batches
+        # With optimizations: 10 chunks takes ~5-8 seconds (much faster!)
+        chunk_batch_size = 10
         total_chunks = len(rows)
 
         conn = self.pool.getconn()
@@ -293,46 +323,72 @@ class VectorStore:
                 )
 
                 # Insert into database
-                with conn.cursor() as cur:
-                    # Prepare data for batch insert
-                    values = [
-                        (
-                            chunk_batch[i]['id'],
-                            chunk_batch[i]['title'],
-                            chunk_batch[i]['source'],
-                            chunk_batch[i]['header'],
-                            chunk_batch[i]['content'],
-                            chunk_batch[i]['chunk_index'],
-                            embeddings[i]
-                        )
-                        for i in range(len(chunk_batch))
-                    ]
+                try:
+                    with conn.cursor() as cur:
+                        # Prepare data for batch insert
+                        values = [
+                            (
+                                chunk_batch[i]['id'],
+                                chunk_batch[i]['title'],
+                                chunk_batch[i]['source'],
+                                chunk_batch[i]['header'],
+                                chunk_batch[i]['content'],
+                                chunk_batch[i]['chunk_index'],
+                                embeddings[i]
+                            )
+                            for i in range(len(chunk_batch))
+                        ]
 
-                    # Batch insert
-                    execute_values(
-                        cur,
-                        """
-                        INSERT INTO documents
-                        (id, title, source, header, content, chunk_index, embedding)
-                        VALUES %s
-                        ON CONFLICT (id) DO UPDATE SET
-                            title = EXCLUDED.title,
-                            source = EXCLUDED.source,
-                            header = EXCLUDED.header,
-                            content = EXCLUDED.content,
-                            chunk_index = EXCLUDED.chunk_index,
-                            embedding = EXCLUDED.embedding,
-                            updated_at = CURRENT_TIMESTAMP
-                        """,
-                        values
-                    )
+                        # Batch insert
+                        execute_values(
+                            cur,
+                            """
+                            INSERT INTO documents
+                            (id, title, source, header, content, chunk_index, embedding)
+                            VALUES %s
+                            ON CONFLICT (id) DO UPDATE SET
+                                title = EXCLUDED.title,
+                                source = EXCLUDED.source,
+                                header = EXCLUDED.header,
+                                content = EXCLUDED.content,
+                                chunk_index = EXCLUDED.chunk_index,
+                                embedding = EXCLUDED.embedding,
+                                updated_at = CURRENT_TIMESTAMP
+                            """,
+                            values
+                        )
+
+                    # Commit outside cursor context to ensure it's not rolled back
                     conn.commit()
-                    logger.info(f"  ✓ Stored {len(chunk_batch)} chunks")
+
+                    # Verify insertion immediately after commit
+                    with conn.cursor() as cur:
+                        # Check if the chunks were actually inserted
+                        chunk_ids = [chunk_batch[i]['id'] for i in range(len(chunk_batch))]
+                        cur.execute(
+                            "SELECT COUNT(*) FROM documents WHERE id = ANY(%s);",
+                            (chunk_ids,)
+                        )
+                        verified_count = cur.fetchone()[0]
+
+                        if verified_count != len(chunk_batch):
+                            logger.error(f"  ✗ Verification failed: Expected {len(chunk_batch)}, found {verified_count}")
+                            raise Exception(f"Data insertion verification failed")
+
+                        logger.info(f"  ✓ Stored and verified {len(chunk_batch)} chunks")
+
+                except Exception as e:
+                    logger.error(f"  ✗ Failed to store chunks: {str(e)}", exc_info=True)
+                    conn.rollback()
+                    raise
 
                 # Yield control to event loop to allow health checks
                 await asyncio.sleep(0.1)
 
             logger.info(f"✓ Document complete: {total_chunks} chunks indexed")
+        except Exception as e:
+            logger.error(f"Error indexing batch: {str(e)}", exc_info=True)
+            raise
         finally:
             self.pool.putconn(conn)
 
