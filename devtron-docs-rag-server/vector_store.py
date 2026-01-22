@@ -5,6 +5,7 @@ Vector Store using PostgreSQL pgvector and Local Embeddings (BAAI/bge-large-en-v
 import logging
 import json
 import os
+import asyncio
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import hashlib
@@ -60,13 +61,14 @@ class LocalEmbeddings:
         # Add instruction prefix for better retrieval (recommended by BGE)
         texts_with_prefix = [f"passage: {text}" for text in texts]
 
-        # Use smaller batch size for CPU to avoid memory issues and provide progress
-        # batch_size=8 is a good balance between speed and memory on CPU
+        # Use very small batch size for CPU to minimize blocking time
+        # batch_size=2 processes 2 texts at a time, reducing memory and blocking
         embeddings = self.model.encode(
             texts_with_prefix,
             show_progress_bar=False,
-            batch_size=8,
-            convert_to_numpy=True
+            batch_size=2,
+            convert_to_numpy=True,
+            normalize_embeddings=False
         )
         return embeddings.tolist()
 
@@ -223,16 +225,18 @@ class VectorStore:
 
         logger.info(f"Starting indexing: {len(documents)} documents")
 
-        # Process documents in smaller batches to avoid timeout
-        # Reduced from 10 to 5 to process fewer chunks at once
-        batch_size = 5
-        total_batches = (len(documents) + batch_size - 1) // batch_size
+        # Process documents one at a time to minimize memory and allow health checks
+        batch_size = 1
+        total_batches = len(documents)
 
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i + batch_size]
-            batch_num = (i // batch_size) + 1
-            logger.info(f"Processing batch {batch_num}/{total_batches} (docs {i+1}-{min(i+batch_size, len(documents))})")
+            batch_num = i + 1
+            logger.info(f"Processing document {batch_num}/{total_batches}: {batch[0].get('title', 'Unknown')}")
             await self._index_batch(batch)
+
+            # Yield control to event loop to allow health checks to respond
+            await asyncio.sleep(0.1)
 
         logger.info(f"✓ Indexing complete: {len(documents)} documents")
 
@@ -263,11 +267,11 @@ class VectorStore:
                     'chunk_index': idx
                 })
 
-        logger.info(f"Processing {len(rows)} chunks from {len(documents)} documents")
+        logger.info(f"Processing {len(rows)} chunks from {len(documents)} document(s)")
 
-        # Process chunks in smaller sub-batches to avoid timeout
-        # Embedding generation is CPU-intensive, so we process 20 chunks at a time
-        chunk_batch_size = 20
+        # Process chunks in very small sub-batches to avoid blocking health checks
+        # Reduced to 5 chunks at a time (~10-15 seconds per sub-batch)
+        chunk_batch_size = 5
         total_chunks = len(rows)
 
         conn = self.pool.getconn()
@@ -277,9 +281,16 @@ class VectorStore:
                 chunk_batch = rows[chunk_start:chunk_end]
 
                 # Generate embeddings for this sub-batch
-                logger.info(f"  Generating embeddings for chunks {chunk_start+1}-{chunk_end}/{total_chunks}...")
+                logger.info(f"  Embedding chunks {chunk_start+1}-{chunk_end}/{total_chunks}...")
                 texts = [row['content'] for row in chunk_batch]
-                embeddings = self.embeddings.embed_documents(texts)
+
+                # Run embedding in thread pool to avoid blocking event loop
+                loop = asyncio.get_event_loop()
+                embeddings = await loop.run_in_executor(
+                    None,
+                    self.embeddings.embed_documents,
+                    texts
+                )
 
                 # Insert into database
                 with conn.cursor() as cur:
@@ -316,9 +327,12 @@ class VectorStore:
                         values
                     )
                     conn.commit()
-                    logger.info(f"  ✓ Stored {len(chunk_batch)} chunks in database")
+                    logger.info(f"  ✓ Stored {len(chunk_batch)} chunks")
 
-            logger.info(f"✓ Batch complete: {total_chunks} chunks indexed")
+                # Yield control to event loop to allow health checks
+                await asyncio.sleep(0.1)
+
+            logger.info(f"✓ Document complete: {total_chunks} chunks indexed")
         finally:
             self.pool.putconn(conn)
 
