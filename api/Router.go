@@ -61,4 +61,5 @@ func (r MuxRouter) Init() {
 	r.Router.Path("/module").
 		Queries("name", "{name}").
 		HandlerFunc(r.restHandler.GetModuleByName).Methods("GET")
+	r.Router.Path("/athena-feedback").HandlerFunc(r.restHandler.SubmitFeedback).Methods("POST")
 }

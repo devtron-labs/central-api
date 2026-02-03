@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type RestHandler interface {
@@ -39,16 +40,19 @@ type RestHandler interface {
 	GetModuleByName(w http.ResponseWriter, r *http.Request)
 	GetDockerfileTemplateMetadata(w http.ResponseWriter, r *http.Request)
 	GetBuildpackMetadata(w http.ResponseWriter, r *http.Request)
+	SubmitFeedback(w http.ResponseWriter, r *http.Request)
 }
 
 func NewRestHandlerImpl(logger *zap.SugaredLogger, releaseNoteService pkg.ReleaseNoteService,
-	webhookSecretValidator pkg.WebhookSecretValidator, client *util.GitHubClient, ciBuildMetadataService pkg.CiBuildMetadataService) *RestHandlerImpl {
+	webhookSecretValidator pkg.WebhookSecretValidator, client *util.GitHubClient,
+	ciBuildMetadataService pkg.CiBuildMetadataService, feedbackService pkg.FeedbackService) *RestHandlerImpl {
 	return &RestHandlerImpl{
 		logger:                 logger,
 		releaseNoteService:     releaseNoteService,
 		webhookSecretValidator: webhookSecretValidator,
 		client:                 client,
 		ciBuildMetadataService: ciBuildMetadataService,
+		feedbackService:        feedbackService,
 	}
 }
 
@@ -58,6 +62,7 @@ type RestHandlerImpl struct {
 	webhookSecretValidator pkg.WebhookSecretValidator
 	client                 *util.GitHubClient
 	ciBuildMetadataService pkg.CiBuildMetadataService
+	feedbackService        pkg.FeedbackService
 }
 
 func setupResponse(w *http.ResponseWriter, req *http.Request) {
@@ -279,4 +284,51 @@ func isVersionNewer(v1, v2 string) bool {
 
 	// Compare using semver
 	return ver1.GreaterThan(ver2)
+}
+
+// SubmitFeedback handles the feedback submission endpoint
+func (impl *RestHandlerImpl) SubmitFeedback(w http.ResponseWriter, r *http.Request) {
+	impl.logger.Info("received feedback submission request")
+	setupResponse(&w, r)
+
+	// Read request body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		impl.logger.Errorw("error reading request body", "err", err)
+		impl.WriteJsonResp(w, err, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	// Parse request directly into FeedbackData
+	var feedbackData common.FeedbackData
+	err = json.Unmarshal(body, &feedbackData)
+	if err != nil {
+		impl.logger.Errorw("error unmarshalling feedback request", "err", err)
+		impl.WriteJsonResp(w, err, "Invalid request format", http.StatusBadRequest)
+		return
+	}
+
+	// Set submitted time if not provided
+	if feedbackData.SubmittedAt.IsZero() {
+		feedbackData.SubmittedAt = time.Now().UTC()
+	}
+
+	// Submit feedback (this will upload to S3 and add to Google Sheets)
+	err = impl.feedbackService.SubmitFeedback(&feedbackData)
+	if err != nil {
+		impl.logger.Errorw("error submitting feedback", "err", err, "ucid", feedbackData.UCID)
+		impl.WriteJsonResp(w, err, "Failed to submit feedback", http.StatusInternalServerError)
+		return
+	}
+
+	impl.logger.Infow("successfully submitted feedback", "ucid", feedbackData.UCID, "threadName", feedbackData.ThreadName)
+
+	// Return success response
+	response := map[string]interface{}{
+		"message": "Feedback submitted successfully",
+		"ucid":    feedbackData.UCID,
+		"s3Url":   feedbackData.FullConversationURL,
+	}
+	impl.WriteJsonResp(w, nil, response, http.StatusOK)
 }

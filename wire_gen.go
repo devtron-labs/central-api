@@ -33,6 +33,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	googleSheetsClient, err := util.NewGoogleSheetsClient(sugaredLogger, blobConfigVariables)
+	if err != nil {
+		return nil, err
+	}
 	blobStorageServiceImpl := blob_storage.NewBlobStorageServiceImpl(sugaredLogger)
 	releaseNoteServiceImpl, err := pkg.NewReleaseNoteServiceImpl(sugaredLogger, gitHubClient, moduleConfig, blobConfigVariables, blobStorageServiceImpl)
 	if err != nil {
@@ -40,7 +44,13 @@ func InitializeApp() (*App, error) {
 	}
 	webhookSecretValidatorImpl := pkg.NewWebhookSecretValidatorImpl(sugaredLogger, gitHubClient)
 	ciBuildMetadataServiceImpl := pkg.NewCiBuildMetadataServiceImpl(sugaredLogger)
-	restHandlerImpl := api.NewRestHandlerImpl(sugaredLogger, releaseNoteServiceImpl, webhookSecretValidatorImpl, gitHubClient, ciBuildMetadataServiceImpl)
+	s3UploadServiceImpl, err := pkg.NewS3UploadServiceImpl(sugaredLogger, blobConfigVariables, googleSheetsClient)
+	if err != nil {
+		return nil, err
+	}
+	googleSheetsServiceImpl := pkg.NewGoogleSheetsServiceImpl(sugaredLogger, googleSheetsClient)
+	feedbackServiceImpl := pkg.NewFeedbackServiceImpl(sugaredLogger, s3UploadServiceImpl, googleSheetsServiceImpl)
+	restHandlerImpl := api.NewRestHandlerImpl(sugaredLogger, releaseNoteServiceImpl, webhookSecretValidatorImpl, gitHubClient, ciBuildMetadataServiceImpl, feedbackServiceImpl)
 	muxRouter := api.NewMuxRouter(sugaredLogger, restHandlerImpl)
 	app := NewApp(muxRouter, sugaredLogger)
 	return app, nil
