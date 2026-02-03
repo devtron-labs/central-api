@@ -1,6 +1,6 @@
 module github.com/devtron-labs/central-api
 
-go 1.24.0
+go 1.19
 
 require (
 	github.com/Masterminds/semver v1.5.0
