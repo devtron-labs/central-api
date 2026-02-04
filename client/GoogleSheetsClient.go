@@ -28,7 +28,7 @@ import (
 
 // GoogleCloudConfig holds configuration for Google Cloud services (Sheets, Storage, etc.)
 type GoogleCloudConfig struct {
-	ServiceAccountJSON string `env:"GOOGLE_SERVICE_ACCOUNT_JSON" envDefault:""`
+	ServiceAccountJSON string `env:"FEEDBACK_GCP_CREDENTIAL_FILE_JSON_DATA" envDefault:""`
 	SpreadsheetID      string `env:"GOOGLE_SPREADSHEET_ID" envDefault:""`
 }
 
@@ -123,4 +123,3 @@ func MarshalServiceAccountJSON(serviceAccountKey map[string]interface{}) (string
 	}
 	return string(jsonBytes), nil
 }
-
