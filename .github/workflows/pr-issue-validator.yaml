@@ -1,0 +1,45 @@
+name: Validate Pull Request
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - edited
+      - reopened
+    branches:
+      - 'main'
+      - 'release-**'
+      - 'develop'
+      - 'hotfix-**'
+    # paths-ignore:
+    #   - 'docs/**'
+    #   - '.github/'
+    #   - 'CHANGELOG/'
+    #   - 'charts/'
+    #   - 'manifests/'
+    #   - 'sample-docker-templates/'
+jobs:
+  validate-PR-issue:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up jq (for parsing JSON)
+        run: sudo apt-get install -y jq
+
+      - name: PR Validation Script
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PRNUM: ${{ github.event.pull_request.number }}
+          TITLE: ${{ github.event.pull_request.title }}
+          GH_TOKEN: ${{ github.token }}
+          GH_PR_VALIDATOR_TOKEN: ${{ secrets.GH_PR_VALIDATOR_TOKEN }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          wget https://raw.githubusercontent.com/devtron-labs/utilities/feat/central-pr-validator/.github/workflows/validateIssue.sh
+          chmod +x validateIssue.sh
+          ./validateIssue.sh

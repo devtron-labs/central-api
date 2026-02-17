@@ -14,28 +14,30 @@
  * limitations under the License.
  */
 
-package util
+package currency
 
 import (
-	"go.uber.org/zap"
+	"math"
 )
 
-var (
-	// Logger is the defaut logger
-	logger *zap.SugaredLogger
-	//FIXME: remove this
-	//defer Logger.Sync()
-)
+// ValidateCurrencyCode checks if a currency code is valid (3-letter ISO format)
+func ValidateCurrencyCode(code string) bool {
+	if len(code) != 3 {
+		return false
+	}
 
-// Deprecated: instead calling this method inject logger from wire
-func GetLogger() *zap.SugaredLogger {
-	return logger
+	// Check if all characters are uppercase letters
+	for _, char := range code {
+		if char < 'A' || char > 'Z' {
+			return false
+		}
+	}
+
+	return true
 }
 
-func init() {
-	l, err := zap.NewProduction()
-	if err != nil {
-		panic("failed to create the default logger: " + err.Error())
-	}
-	logger = l.Sugar()
+// FormatCurrency formats a currency amount to a reasonable number of decimal places
+func FormatCurrency(amount float64) float64 {
+	// Round to 6 decimal places for precision
+	return math.Round(amount*1000000) / 1000000
 }
