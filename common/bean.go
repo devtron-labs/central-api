@@ -16,21 +16,9 @@
 
 package common
 
-import "time"
-
-type Response struct {
-	Code   int         `json:"code,omitempty"`
-	Status string      `json:"status,omitempty"`
-	Result interface{} `json:"result,omitempty"`
-	Errors []*ApiError `json:"errors,omitempty"`
-}
-type ApiError struct {
-	HttpStatusCode    int         `json:"-"`
-	Code              string      `json:"code,omitempty"`
-	InternalMessage   string      `json:"internalMessage,omitempty"`
-	UserMessage       interface{} `json:"userMessage,omitempty"`
-	UserDetailMessage string      `json:"userDetailMessage,omitempty"`
-}
+import (
+	"time"
+)
 
 type ReleaseList struct {
 	Releases []*Release `json:"releases"`
@@ -83,4 +71,17 @@ type GroupVersionKind struct {
 
 type ResourceIdentifier struct {
 	Labels map[string]string `json:"labels"`
+}
+
+// FeedbackData represents the data structure for feedback submissions
+type FeedbackData struct {
+	UCID              string    `json:"ucid"`
+	ThreadName        string    `json:"threadName"`
+	UserEmail         string    `json:"userEmail"`
+	Reasons           []string  `json:"reasons"`
+	AdditionalDetails string    `json:"additionalDetails"`
+	ConversationText  string    `json:"conversationText"`
+	IsCompressed      bool      `json:"isCompressed"`
+	SubmittedAt       time.Time `json:"submittedAt"`
+	FullConversationURL string  `json:"-"` // Internal field, not serialized to JSON
 }

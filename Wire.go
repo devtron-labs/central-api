@@ -38,6 +38,7 @@ func InitializeApp() (*App, error) {
 		NewApp,
 		api.NewMuxRouter,
 		util.NewGitHubClient,
+		util.NewGoogleSheetsClient,
 		//logger.NewHttpClient,
 		api.NewRestHandlerImpl,
 		wire.Bind(new(api.RestHandler), new(*api.RestHandlerImpl)),
@@ -50,6 +51,18 @@ func InitializeApp() (*App, error) {
 
 		pkg.NewCiBuildMetadataServiceImpl,
 		wire.Bind(new(pkg.CiBuildMetadataService), new(*pkg.CiBuildMetadataServiceImpl)),
+
+		// S3 Upload Service
+		pkg.NewS3UploadServiceImpl,
+		wire.Bind(new(pkg.S3UploadService), new(*pkg.S3UploadServiceImpl)),
+
+		// Google Sheets Service
+		pkg.NewGoogleSheetsServiceImpl,
+		wire.Bind(new(pkg.GoogleSheetsService), new(*pkg.GoogleSheetsServiceImpl)),
+
+		// Feedback Service
+		pkg.NewFeedbackServiceImpl,
+		wire.Bind(new(pkg.FeedbackService), new(*pkg.FeedbackServiceImpl)),
 	)
 	return &App{}, nil
 }

@@ -1,0 +1,118 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+mcp-docs-server/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.exe
+*.test
+*.out
+vendor/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Data directories (will be mounted as volumes)
+/data/
+devtron-docs/
+chroma_db/
+
+# Logs
+*.log
+logs/
+
+# Test files
+*_test.go
+test/
+tests/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Docker
+docker-compose*.yml
+Dockerfile.dev
+.dockerignore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Scripts (not needed in image)
+scripts/dev/
+scripts/test/
+start-integrated.sh
+
+# Documentation files (exclude all .md except README)
+STARTUP_FIX.md
+INDEXING_API_GUIDE.md
+INDEXING_CHANGES_SUMMARY.md
+CHANGES_COMPLETE.md
+DATABASE_CONNECTION_LOGS.md
+DOCKERFILE_OPTIMIZATION_GUIDE.md
+DOCKER_OPTIMIZATION_COMPLETE.md
+OPTIMIZATION_SUMMARY.md
+QUICK_START.md
+
+# Node modules (if any)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Large binary files
+*.tar
+*.tar.gz
+*.zip
+*.rar
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache directories
+.cache/
+.npm/
+.yarn/
+

@@ -38,6 +38,19 @@ type BlobConfigVariables struct {
 	AzureBlobContainerName    string                       `env:"AZURE_BLOB_CONTAINER_NAME"`
 	GcpBucketName             string                       `env:"GCP_BUCKET_NAME"`
 	GcpCredentialFileJsonData string                       `env:"GCP_CREDENTIAL_FILE_JSON_DATA"`
+
+	// Feedback Storage Configuration
+	FeedbackStorageType                blob_storage.BlobStorageType `env:"FEEDBACK_STORAGE_TYPE" envDefault:"S3"` // S3, GCP, AZURE
+	FeedbackS3AccessKey                string                       `env:"FEEDBACK_S3_ACCESS_KEY"`
+	FeedbackS3Passkey                  string                       `env:"FEEDBACK_S3_PASS_KEY"`
+	FeedbackS3BucketName               string                       `env:"FEEDBACK_S3_BUCKET_NAME"`
+	FeedbackS3Region                   string                       `env:"FEEDBACK_S3_REGION" envDefault:"us-east-1"`
+	FeedbackGcpBucketName              string                       `env:"FEEDBACK_GCP_BUCKET_NAME"`
+	FeedbackGcpCredentialFileJsonData  string                       `env:"FEEDBACK_GCP_CREDENTIAL_FILE_JSON_DATA"` // Can use same as Google Sheets service account
+	FeedbackAzureEnabled               bool                         `env:"FEEDBACK_AZURE_ENABLED" envDefault:"false"`
+	FeedbackAzureAccountName           string                       `env:"FEEDBACK_AZURE_ACCOUNT_NAME"`
+	FeedbackAzureAccountKey            string                       `env:"FEEDBACK_AZURE_ACCOUNT_KEY"`
+	FeedbackAzureBlobContainerName     string                       `env:"FEEDBACK_AZURE_BLOB_CONTAINER_NAME"`
 }
 
 func NewBlobConfig(logger *zap.SugaredLogger) (*BlobConfigVariables, error) {
