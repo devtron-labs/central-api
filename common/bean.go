@@ -72,3 +72,16 @@ type GroupVersionKind struct {
 type ResourceIdentifier struct {
 	Labels map[string]string `json:"labels"`
 }
+
+// FeedbackData represents the data structure for feedback submissions
+type FeedbackData struct {
+	UCID              string    `json:"ucid"`
+	ThreadName        string    `json:"threadName"`
+	UserEmail         string    `json:"userEmail"`
+	Reasons           []string  `json:"reasons"`
+	AdditionalDetails string    `json:"additionalDetails"`
+	ConversationText  string    `json:"conversationText"`
+	IsCompressed      bool      `json:"isCompressed"`
+	SubmittedAt       time.Time `json:"submittedAt"`
+	FullConversationURL string  `json:"-"` // Internal field, not serialized to JSON
+}

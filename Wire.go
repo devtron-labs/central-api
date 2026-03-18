@@ -21,18 +21,16 @@ package main
 
 import (
 	"github.com/devtron-labs/central-api/api"
-	"github.com/devtron-labs/central-api/api/currency"
 	util "github.com/devtron-labs/central-api/client"
+	"github.com/devtron-labs/central-api/internal/logger"
 	"github.com/devtron-labs/central-api/pkg"
-	currencyPkg "github.com/devtron-labs/central-api/pkg/currency"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	"github.com/devtron-labs/common-lib/utils"
 	"github.com/google/wire"
 )
 
 func InitializeApp() (*App, error) {
 	wire.Build(
-		utils.NewSugardLogger,
+		logger.NewSugardLogger,
 		//sql.PgSqlWireSet,
 		//releaseNote.NewReleaseNoteRepositoryImpl,
 		//wire.Bind(new(releaseNote.ReleaseNoteRepository), new(*releaseNote.ReleaseNoteRepositoryImpl)),
@@ -40,6 +38,7 @@ func InitializeApp() (*App, error) {
 		NewApp,
 		api.NewMuxRouter,
 		util.NewGitHubClient,
+		util.NewGoogleSheetsClient,
 		//logger.NewHttpClient,
 		api.NewRestHandlerImpl,
 		wire.Bind(new(api.RestHandler), new(*api.RestHandlerImpl)),
@@ -53,14 +52,17 @@ func InitializeApp() (*App, error) {
 		pkg.NewCiBuildMetadataServiceImpl,
 		wire.Bind(new(pkg.CiBuildMetadataService), new(*pkg.CiBuildMetadataServiceImpl)),
 
-		// Currency service dependencies
-		currencyPkg.NewCurrencyConfig,
-		currencyPkg.NewServiceImpl,
-		wire.Bind(new(currencyPkg.Service), new(*currencyPkg.ServiceImpl)),
-		currency.NewCurrencyRestHandlerImpl,
-		wire.Bind(new(currency.CurrencyRestHandler), new(*currency.CurrencyRestHandlerImpl)),
-		currency.NewRouter,
-		wire.Bind(new(currency.Router), new(*currency.RouterImpl)),
+		// S3 Upload Service
+		pkg.NewS3UploadServiceImpl,
+		wire.Bind(new(pkg.S3UploadService), new(*pkg.S3UploadServiceImpl)),
+
+		// Google Sheets Service
+		pkg.NewGoogleSheetsServiceImpl,
+		wire.Bind(new(pkg.GoogleSheetsService), new(*pkg.GoogleSheetsServiceImpl)),
+
+		// Feedback Service
+		pkg.NewFeedbackServiceImpl,
+		wire.Bind(new(pkg.FeedbackService), new(*pkg.FeedbackServiceImpl)),
 	)
 	return &App{}, nil
 }

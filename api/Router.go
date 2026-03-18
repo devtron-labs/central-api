@@ -74,4 +74,7 @@ func (r MuxRouter) Init() {
 	currencyRouter := r.Router.PathPrefix("/currency").Subrouter()
 	// Initialize currency routes
 	r.currencyRouter.InitCurrencyRoutes(currencyRouter)
+
+	// athena-ai-chat feedback router
+	r.Router.Path("/athena-feedback").HandlerFunc(r.restHandler.SubmitFeedback).Methods("POST")
 }
