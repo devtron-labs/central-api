@@ -8,16 +8,18 @@ package main
 
 import (
 	"github.com/devtron-labs/central-api/api"
+	currency2 "github.com/devtron-labs/central-api/api/currency"
 	"github.com/devtron-labs/central-api/client"
-	"github.com/devtron-labs/central-api/internal/logger"
 	"github.com/devtron-labs/central-api/pkg"
+	"github.com/devtron-labs/central-api/pkg/currency"
 	"github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/common-lib/utils"
 )
 
 // Injectors from Wire.go:
 
 func InitializeApp() (*App, error) {
-	sugaredLogger, err := logger.NewSugardLogger()
+	sugaredLogger, err := utils.NewSugardLogger()
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +53,14 @@ func InitializeApp() (*App, error) {
 	googleSheetsServiceImpl := pkg.NewGoogleSheetsServiceImpl(sugaredLogger, googleSheetsClient)
 	feedbackServiceImpl := pkg.NewFeedbackServiceImpl(sugaredLogger, s3UploadServiceImpl, googleSheetsServiceImpl)
 	restHandlerImpl := api.NewRestHandlerImpl(sugaredLogger, releaseNoteServiceImpl, webhookSecretValidatorImpl, gitHubClient, ciBuildMetadataServiceImpl, feedbackServiceImpl)
-	muxRouter := api.NewMuxRouter(sugaredLogger, restHandlerImpl)
+	currencyConfig, err := currency.NewCurrencyConfig(sugaredLogger)
+	if err != nil {
+		return nil, err
+	}
+	serviceImpl := currency.NewServiceImpl(currencyConfig, sugaredLogger)
+	currencyRestHandlerImpl := currency2.NewCurrencyRestHandlerImpl(sugaredLogger, serviceImpl)
+	routerImpl := currency2.NewRouter(sugaredLogger, currencyRestHandlerImpl)
+	muxRouter := api.NewMuxRouter(sugaredLogger, restHandlerImpl, routerImpl)
 	app := NewApp(muxRouter, sugaredLogger)
 	return app, nil
 }

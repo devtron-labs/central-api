@@ -17,6 +17,7 @@
 package api
 
 import (
+	"encoding/json"
 	"github.com/Masterminds/semver"
 	"github.com/devtron-labs/central-api/api/handler"
 	util "github.com/devtron-labs/central-api/client"
@@ -258,13 +259,13 @@ func isVersionNewer(v1, v2 string) bool {
 // SubmitFeedback handles the feedback submission endpoint
 func (impl *RestHandlerImpl) SubmitFeedback(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Info("received feedback submission request")
-	setupResponse(&w, r)
+	handler.SetupCorsOriginHeader(&w, r)
 
 	// Read request body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		impl.logger.Errorw("error reading request body", "err", err)
-		impl.WriteJsonResp(w, err, "Failed to read request body", http.StatusBadRequest)
+		handler.WriteJsonResp(w, err, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
@@ -274,7 +275,7 @@ func (impl *RestHandlerImpl) SubmitFeedback(w http.ResponseWriter, r *http.Reque
 	err = json.Unmarshal(body, &feedbackData)
 	if err != nil {
 		impl.logger.Errorw("error unmarshalling feedback request", "err", err)
-		impl.WriteJsonResp(w, err, "Invalid request format", http.StatusBadRequest)
+		handler.WriteJsonResp(w, err, "Invalid request format", http.StatusBadRequest)
 		return
 	}
 
@@ -287,7 +288,7 @@ func (impl *RestHandlerImpl) SubmitFeedback(w http.ResponseWriter, r *http.Reque
 	err = impl.feedbackService.SubmitFeedback(&feedbackData)
 	if err != nil {
 		impl.logger.Errorw("error submitting feedback", "err", err, "ucid", feedbackData.UCID)
-		impl.WriteJsonResp(w, err, "Failed to submit feedback", http.StatusInternalServerError)
+		handler.WriteJsonResp(w, err, "Failed to submit feedback", http.StatusInternalServerError)
 		return
 	}
 
@@ -299,5 +300,5 @@ func (impl *RestHandlerImpl) SubmitFeedback(w http.ResponseWriter, r *http.Reque
 		"ucid":    feedbackData.UCID,
 		"s3Url":   feedbackData.FullConversationURL,
 	}
-	impl.WriteJsonResp(w, nil, response, http.StatusOK)
+	handler.WriteJsonResp(w, nil, response, http.StatusOK)
 }

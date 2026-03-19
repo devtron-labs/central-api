@@ -21,16 +21,18 @@ package main
 
 import (
 	"github.com/devtron-labs/central-api/api"
+	"github.com/devtron-labs/central-api/api/currency"
 	util "github.com/devtron-labs/central-api/client"
-	"github.com/devtron-labs/central-api/internal/logger"
 	"github.com/devtron-labs/central-api/pkg"
+	currencyPkg "github.com/devtron-labs/central-api/pkg/currency"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/common-lib/utils"
 	"github.com/google/wire"
 )
 
 func InitializeApp() (*App, error) {
 	wire.Build(
-		logger.NewSugardLogger,
+		utils.NewSugardLogger,
 		//sql.PgSqlWireSet,
 		//releaseNote.NewReleaseNoteRepositoryImpl,
 		//wire.Bind(new(releaseNote.ReleaseNoteRepository), new(*releaseNote.ReleaseNoteRepositoryImpl)),
@@ -51,6 +53,15 @@ func InitializeApp() (*App, error) {
 
 		pkg.NewCiBuildMetadataServiceImpl,
 		wire.Bind(new(pkg.CiBuildMetadataService), new(*pkg.CiBuildMetadataServiceImpl)),
+
+		// Currency service dependencies
+		currencyPkg.NewCurrencyConfig,
+		currencyPkg.NewServiceImpl,
+		wire.Bind(new(currencyPkg.Service), new(*currencyPkg.ServiceImpl)),
+		currency.NewCurrencyRestHandlerImpl,
+		wire.Bind(new(currency.CurrencyRestHandler), new(*currency.CurrencyRestHandlerImpl)),
+		currency.NewRouter,
+		wire.Bind(new(currency.Router), new(*currency.RouterImpl)),
 
 		// S3 Upload Service
 		pkg.NewS3UploadServiceImpl,
