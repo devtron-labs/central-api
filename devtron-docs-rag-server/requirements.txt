@@ -6,7 +6,10 @@ uvicorn[standard]>=0.27.0
 psycopg2-binary>=2.9.9
 pgvector>=0.2.4
 
-# Local Embeddings (supports both CPU and GPU)
+# Local Embeddings (CPU-only, avoids ~2.4 GB CUDA wheels)
+# Primary index is the PyTorch CPU wheel index; PyPI used as fallback for everything else
+--index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://pypi.org/simple
 sentence-transformers>=2.2.2
 torch>=2.0.0
 
