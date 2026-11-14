@@ -27,18 +27,20 @@ import (
 )
 
 type MuxRouter struct {
-	logger         *zap.SugaredLogger
-	Router         *mux.Router
-	restHandler    RestHandler
-	currencyRouter currency.Router
+	logger           *zap.SugaredLogger
+	Router           *mux.Router
+	restHandler      RestHandler
+	currencyRouter   currency.Router
+	docsProxyHandler *DocsProxyHandler
 }
 
-func NewMuxRouter(logger *zap.SugaredLogger, restHandler RestHandler, currencyRouter currency.Router) *MuxRouter {
+func NewMuxRouter(logger *zap.SugaredLogger, restHandler RestHandler, currencyRouter currency.Router, docsProxyHandler *DocsProxyHandler) *MuxRouter {
 	return &MuxRouter{
-		logger:         logger,
-		Router:         mux.NewRouter(),
-		restHandler:    restHandler,
-		currencyRouter: currencyRouter,
+		logger:           logger,
+		Router:           mux.NewRouter(),
+		restHandler:      restHandler,
+		currencyRouter:   currencyRouter,
+		docsProxyHandler: docsProxyHandler,
 	}
 }
 
@@ -77,4 +79,8 @@ func (r MuxRouter) Init() {
 
 	// athena-ai-chat feedback router
 	r.Router.Path("/athena-feedback").HandlerFunc(r.restHandler.SubmitFeedback).Methods("POST")
+
+	// Docs RAG server: search and health only, so indexing is never reachable from outside.
+	r.Router.Path("/docs/search").HandlerFunc(r.docsProxyHandler.ProxyRequest).Methods("POST")
+	r.Router.Path("/docs/health").HandlerFunc(r.docsProxyHandler.ProxyRequest).Methods("GET")
 }

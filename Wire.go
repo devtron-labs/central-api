@@ -39,6 +39,7 @@ func InitializeApp() (*App, error) {
 		blob_storage.NewBlobStorageServiceImpl,
 		NewApp,
 		api.NewMuxRouter,
+		api.NewDocsProxyHandler,
 		util.NewGitHubClient,
 		util.NewGoogleSheetsClient,
 		//logger.NewHttpClient,
