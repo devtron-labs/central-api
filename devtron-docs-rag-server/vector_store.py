@@ -1,12 +1,13 @@
 """
-Vector Store using PostgreSQL pgvector and Local Embeddings (BAAI/bge-large-en-v1.5)
+Vector Store using PostgreSQL pgvector and local embeddings
 """
 
 import logging
 import json
+import math
 import os
 import asyncio
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Callable, Optional
 from pathlib import Path
 import hashlib
 
@@ -15,13 +16,34 @@ from psycopg2.extras import execute_values
 from psycopg2.pool import SimpleConnectionPool
 from sentence_transformers import SentenceTransformer
 
+from settings import EMBEDDING_MODEL
+
 logger = logging.getLogger(__name__)
+
+# Chunks are about 1000 characters; longer token runs are cut instead of slowing every batch.
+MAX_TOKENS = int(os.getenv("EMBEDDING_MAX_TOKENS", "256"))
+
+
+def cpu_limit() -> int:
+    """CPUs this container may use: its cgroup quota when one is set, else the host count."""
+    for quota_file, period_file in (("/sys/fs/cgroup/cpu.max", None),
+                                    ("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", "/sys/fs/cgroup/cpu/cpu.cfs_period_us")):
+        try:
+            if period_file is None:
+                quota, period = Path(quota_file).read_text().split()
+            else:
+                quota, period = Path(quota_file).read_text().strip(), Path(period_file).read_text().strip()
+            if quota not in ("max", "-1"):
+                return max(1, math.ceil(int(quota) / int(period)))
+        except (OSError, ValueError):
+            continue
+    return os.cpu_count() or 1
 
 
 class LocalEmbeddings:
-    """Local embeddings using BAAI/bge-large-en-v1.5 model."""
+    """Local embeddings using a sentence-transformers model."""
 
-    def __init__(self, model_name: str = "BAAI/bge-large-en-v1.5"):
+    def __init__(self, model_name: str = EMBEDDING_MODEL):
         """
         Initialize local embedding model.
 
@@ -50,18 +72,16 @@ class LocalEmbeddings:
             # Set model to evaluation mode for faster inference
             self.model.eval()
 
-            # Enable CPU optimizations if available
-            try:
-                # Use Intel MKL optimizations if available
-                torch.set_num_threads(2)  # Limit threads to avoid oversubscription
-                logger.info(f"Set PyTorch threads to 2 for optimal CPU performance")
-            except Exception:
-                pass
+            # One thread per CPU the container is allowed, so a bigger limit is actually used.
+            threads = int(os.getenv("EMBEDDING_THREADS", cpu_limit()))
+            torch.set_num_threads(threads)
+            self.model.max_seq_length = min(MAX_TOKENS, self.model.max_seq_length)
+            logger.info(f"PyTorch threads: {threads}, max tokens per chunk: {self.model.max_seq_length}")
 
             self.dimension = self.model.get_sentence_embedding_dimension()
-            logger.info(f"✓ Embedding model loaded (dimension: {self.dimension})")
+            logger.info(f"Embedding model loaded (dimension: {self.dimension})")
         except Exception as e:
-            logger.error(f"✗ Failed to load embedding model: {str(e)}")
+            logger.error(f"Failed to load embedding model: {str(e)}")
             logger.error(f"Cache directory: {cache_dir}")
             logger.error(f"Cache exists: {os.path.exists(cache_dir) if cache_dir else 'N/A'}")
             raise
@@ -85,7 +105,7 @@ class LocalEmbeddings:
         embeddings = self.model.encode(
             texts_with_prefix,
             show_progress_bar=False,
-            batch_size=16,
+            batch_size=32,
             convert_to_numpy=True,
             normalize_embeddings=False,
             device='cpu'  # Explicitly use CPU
@@ -118,7 +138,7 @@ class VectorStore:
         db_name: str = "devtron_docs",
         db_user: str = "postgres",
         db_password: str = "postgres",
-        embedding_model: str = "BAAI/bge-large-en-v1.5"
+        embedding_model: str = EMBEDDING_MODEL
     ):
         """
         Initialize vector store.
@@ -150,7 +170,7 @@ class VectorStore:
                 with conn.cursor() as cur:
                     cur.execute("SELECT version();")
                     version = cur.fetchone()[0]
-                    logger.info(f"✓ Database connected successfully")
+                    logger.info(f"Database connected successfully")
 
                     # Log connection details for debugging
                     cur.execute("SELECT current_database(), current_schema();")
@@ -160,11 +180,11 @@ class VectorStore:
                 self.pool.putconn(conn)
 
         except psycopg2.OperationalError as e:
-            logger.error(f"✗ Database connection failed: {str(e)}")
+            logger.error(f"Database connection failed: {str(e)}")
             logger.error(f"Connection: {db_user}@{db_host}:{db_port}/{db_name}")
             raise
         except Exception as e:
-            logger.error(f"✗ Unexpected error: {str(e)}")
+            logger.error(f"Unexpected error: {str(e)}")
             raise
 
         # Initialize local embeddings
@@ -175,7 +195,7 @@ class VectorStore:
         # Initialize database schema
         logger.info("Initializing database schema...")
         self._init_database()
-        logger.info("✓ Vector store ready")
+        logger.info("Vector store ready")
 
     def _init_database(self):
         """Initialize database schema with pgvector extension."""
@@ -195,17 +215,14 @@ class VectorStore:
                         content TEXT NOT NULL,
                         chunk_index INTEGER,
                         embedding vector({self.embedding_dimension}),
+                        content_hash TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     );
                 """)
 
-                # Create index for vector similarity search
-                cur.execute("""
-                    CREATE INDEX IF NOT EXISTS documents_embedding_idx
-                    ON documents USING ivfflat (embedding vector_cosine_ops)
-                    WITH (lists = 100);
-                """)
+                # No vector index: a few thousand rows are scanned exactly in milliseconds,
+                # and an ivfflat index with one probe would skip most of them.
 
                 # Create index for source lookups
                 cur.execute("""
@@ -218,14 +235,70 @@ class VectorStore:
                 # Log table statistics
                 cur.execute("SELECT COUNT(*) FROM documents;")
                 doc_count = cur.fetchone()[0]
-                logger.info(f"✓ Schema initialized ({doc_count} documents indexed)")
+                logger.info(f"Schema initialized ({doc_count} documents indexed)")
 
         except psycopg2.Error as e:
-            logger.error(f"✗ Database schema initialization failed: {str(e)}")
+            logger.error(f"Database schema initialization failed: {str(e)}")
             raise
         finally:
             self.pool.putconn(conn)
     
+    def schema_problem(self) -> Optional[str]:
+        """Why the table cannot hold this model's vectors, or None when it can."""
+        conn = self.pool.getconn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT attname, atttypmod FROM pg_attribute
+                    WHERE attrelid = 'documents'::regclass AND attname IN ('embedding', 'content_hash')
+                      AND NOT attisdropped;
+                """)
+                columns = dict(cur.fetchall())
+        finally:
+            self.pool.putconn(conn)
+        if columns.get("embedding") != self.embedding_dimension:
+            return (f"table holds {columns.get('embedding')}-dimension vectors, "
+                    f"the model produces {self.embedding_dimension}")
+        if "content_hash" not in columns:
+            return "table has no content_hash column"
+        return None
+
+    def rebuild_schema(self) -> None:
+        """Empty the table and fit it to the current model."""
+        logger.warning("Clearing the documents table for a full rebuild...")
+        conn = self.pool.getconn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("TRUNCATE TABLE documents;")
+                cur.execute("DROP INDEX IF EXISTS documents_embedding_idx;")
+                cur.execute(f"ALTER TABLE documents ALTER COLUMN embedding TYPE vector({self.embedding_dimension});")
+                cur.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS content_hash TEXT;")
+            conn.commit()
+        finally:
+            self.pool.putconn(conn)
+
+    def indexed_hashes(self) -> Dict[str, Optional[str]]:
+        """The content hash stored for each indexed source file."""
+        conn = self.pool.getconn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT DISTINCT source, content_hash FROM documents;")
+                return dict(cur.fetchall())
+        finally:
+            self.pool.putconn(conn)
+
+    def delete_sources(self, sources: List[str]) -> None:
+        """Remove every chunk of the given source files."""
+        if not sources:
+            return
+        conn = self.pool.getconn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM documents WHERE source = ANY(%s);", (sources,))
+            conn.commit()
+        finally:
+            self.pool.putconn(conn)
+
     def needs_indexing(self) -> bool:
         """Check if the database needs initial indexing."""
         conn = self.pool.getconn()
@@ -237,190 +310,68 @@ class VectorStore:
         finally:
             self.pool.putconn(conn)
     
-    async def index_documents(self, documents: List[Dict[str, Any]]) -> None:
+    async def index_documents(self, documents: List[Dict[str, Any]],
+                              on_progress: Optional[Callable[[int], None]] = None) -> None:
         """
-        Index documents into the vector store.
+        Replace the given documents in the vector store.
 
         Args:
             documents: List of document dictionaries
+            on_progress: Called with the number of documents stored so far
         """
         if not documents:
-            logger.warning("No documents to index")
+            logger.info("No documents to index")
             return
 
         logger.info(f"Starting indexing: {len(documents)} documents")
-
-        # Process documents in small batches with optimized embedding
-        # With faster embeddings, we can process 2-3 documents at once
-        batch_size = 2
-        total_batches = (len(documents) + batch_size - 1) // batch_size
-
+        batch_size = 8
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i + batch_size]
-            batch_num = (i // batch_size) + 1
-
-            # Log document titles being processed
-            titles = [doc.get('title', 'Unknown') for doc in batch]
-            logger.info(f"Processing batch {batch_num}/{total_batches}: {', '.join(titles[:2])}")
-
             await self._index_batch(batch)
+            if on_progress:
+                on_progress(i + len(batch))
+            # Yield control to event loop to allow health checks and searches to respond
+            await asyncio.sleep(0)
 
-            # Yield control to event loop to allow health checks to respond
-            await asyncio.sleep(0.1)
-
-        logger.info(f"✓ Indexing complete: {len(documents)} documents")
+        logger.info(f"Indexing complete: {len(documents)} documents")
 
     async def _index_batch(self, documents: List[Dict[str, Any]]) -> None:
-        """Index a batch of documents."""
+        """Embed one batch of documents and store it in a single transaction."""
         rows = []
-
         for doc in documents:
-            # Index each chunk separately for better retrieval
-            chunks = doc.get('chunks', [])
-
-            if not chunks:
-                # If no chunks, index the whole document
-                chunks = [{
-                    'content': doc['content'],
-                    'header': doc['title'],
-                    'source': doc['source']
-                }]
-
+            chunks = doc.get('chunks') or [{'content': doc['content'], 'header': doc['title']}]
             for idx, chunk in enumerate(chunks):
-                chunk_id = f"{doc['id']}_chunk_{idx}"
-                rows.append({
-                    'id': chunk_id,
-                    'title': doc['title'],
-                    'source': doc['source'],
-                    'header': chunk.get('header', ''),
-                    'content': chunk['content'],
-                    'chunk_index': idx
-                })
+                rows.append((f"{doc['id']}_chunk_{idx}", doc['title'], doc['source'],
+                             chunk.get('header', ''), chunk['content'], idx, doc.get('content_hash')))
 
-        logger.info(f"Processing {len(rows)} chunks from {len(documents)} document(s)")
+        # Run embedding in a thread so the event loop keeps serving requests
+        loop = asyncio.get_event_loop()
+        embeddings = await loop.run_in_executor(
+            None, self.embeddings.embed_documents, [row[4] for row in rows])
 
-        # Process chunks in optimized sub-batches
-        # With optimizations: 10 chunks takes ~5-8 seconds (much faster!)
-        chunk_batch_size = 10
-        total_chunks = len(rows)
-
-        conn = self.pool.getconn()
-        try:
-            for chunk_start in range(0, total_chunks, chunk_batch_size):
-                chunk_end = min(chunk_start + chunk_batch_size, total_chunks)
-                chunk_batch = rows[chunk_start:chunk_end]
-
-                # Generate embeddings for this sub-batch
-                logger.info(f"  Embedding chunks {chunk_start+1}-{chunk_end}/{total_chunks}...")
-                texts = [row['content'] for row in chunk_batch]
-
-                # Run embedding in thread pool to avoid blocking event loop
-                loop = asyncio.get_event_loop()
-                embeddings = await loop.run_in_executor(
-                    None,
-                    self.embeddings.embed_documents,
-                    texts
-                )
-
-                # Insert into database
-                try:
-                    with conn.cursor() as cur:
-                        # Prepare data for batch insert
-                        values = [
-                            (
-                                chunk_batch[i]['id'],
-                                chunk_batch[i]['title'],
-                                chunk_batch[i]['source'],
-                                chunk_batch[i]['header'],
-                                chunk_batch[i]['content'],
-                                chunk_batch[i]['chunk_index'],
-                                embeddings[i]
-                            )
-                            for i in range(len(chunk_batch))
-                        ]
-
-                        # Batch insert
-                        execute_values(
-                            cur,
-                            """
-                            INSERT INTO documents
-                            (id, title, source, header, content, chunk_index, embedding)
-                            VALUES %s
-                            ON CONFLICT (id) DO UPDATE SET
-                                title = EXCLUDED.title,
-                                source = EXCLUDED.source,
-                                header = EXCLUDED.header,
-                                content = EXCLUDED.content,
-                                chunk_index = EXCLUDED.chunk_index,
-                                embedding = EXCLUDED.embedding,
-                                updated_at = CURRENT_TIMESTAMP
-                            """,
-                            values
-                        )
-
-                    # Commit outside cursor context to ensure it's not rolled back
-                    conn.commit()
-
-                    # Verify insertion immediately after commit
-                    with conn.cursor() as cur:
-                        # Check if the chunks were actually inserted
-                        chunk_ids = [chunk_batch[i]['id'] for i in range(len(chunk_batch))]
-                        cur.execute(
-                            "SELECT COUNT(*) FROM documents WHERE id = ANY(%s);",
-                            (chunk_ids,)
-                        )
-                        verified_count = cur.fetchone()[0]
-
-                        if verified_count != len(chunk_batch):
-                            logger.error(f"  ✗ Verification failed: Expected {len(chunk_batch)}, found {verified_count}")
-                            raise Exception(f"Data insertion verification failed")
-
-                        logger.info(f"  ✓ Stored and verified {len(chunk_batch)} chunks")
-
-                except Exception as e:
-                    logger.error(f"  ✗ Failed to store chunks: {str(e)}", exc_info=True)
-                    conn.rollback()
-                    raise
-
-                # Yield control to event loop to allow health checks
-                await asyncio.sleep(0.1)
-
-            logger.info(f"✓ Document complete: {total_chunks} chunks indexed")
-        except Exception as e:
-            logger.error(f"Error indexing batch: {str(e)}", exc_info=True)
-            raise
-        finally:
-            self.pool.putconn(conn)
-
-    async def update_documents(self, documents: List[Dict[str, Any]]) -> None:
-        """
-        Update specific documents in the vector store.
-
-        Args:
-            documents: List of document dictionaries to update
-        """
-        if not documents:
-            return
-
-        logger.info(f"Updating {len(documents)} documents...")
-
-        # Delete old versions
         conn = self.pool.getconn()
         try:
             with conn.cursor() as cur:
-                for doc in documents:
-                    cur.execute(
-                        "DELETE FROM documents WHERE source = %s",
-                        (doc['source'],)
-                    )
-                conn.commit()
+                # Old chunks go in the same transaction, so a document is never half replaced
+                cur.execute("DELETE FROM documents WHERE source = ANY(%s);",
+                            ([doc['source'] for doc in documents],))
+                execute_values(
+                    cur,
+                    """
+                    INSERT INTO documents
+                    (id, title, source, header, content, chunk_index, content_hash, embedding)
+                    VALUES %s
+                    """,
+                    [row + (embedding,) for row, embedding in zip(rows, embeddings)]
+                )
+            conn.commit()
+            logger.info(f"  Stored {len(rows)} chunks from {len(documents)} document(s)")
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"  Failed to store chunks: {str(e)}", exc_info=True)
+            raise
         finally:
             self.pool.putconn(conn)
-
-        # Re-index the documents
-        await self.index_documents(documents)
-
-        logger.info("Update complete")
 
     async def search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
         """
@@ -472,18 +423,6 @@ class VectorStore:
 
                 logger.info(f"Search: '{query}' -> {len(formatted_results)} results")
                 return formatted_results
-        finally:
-            self.pool.putconn(conn)
-
-    def reset(self) -> None:
-        """Reset the vector store (delete all data)."""
-        logger.warning("Resetting vector store...")
-        conn = self.pool.getconn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("TRUNCATE TABLE documents;")
-                conn.commit()
-                logger.info("Vector store reset complete")
         finally:
             self.pool.putconn(conn)
 

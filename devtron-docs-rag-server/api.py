@@ -7,7 +7,9 @@ REST API for documentation search and re-indexing using PostgreSQL pgvector and 
 import asyncio
 import logging
 import os
-from typing import List, Optional
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Any, Dict, List, Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -15,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from doc_processor import DocumentationProcessor
+from settings import EMBEDDING_MODEL
 from vector_store import VectorStore
 
 # Configure logging
@@ -29,6 +32,33 @@ doc_processor: Optional[DocumentationProcessor] = None
 vector_store: Optional[VectorStore] = None
 
 
+
+class IndexState(str, Enum):
+    IDLE = "idle"
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+
+
+class IndexMode(str, Enum):
+    REBUILD = "rebuild"
+    UPDATE = "update"
+
+
+class ServiceStatus(str, Enum):
+    HEALTHY = "healthy"
+
+
+class DatabaseStatus(str, Enum):
+    CONNECTED = "connected"
+
+
+# The one indexing job this server runs at a time, and how far it has got.
+index_job: Dict[str, Any] = {"state": IndexState.IDLE, "mode": None, "started_at": None, "finished_at": None,
+                             "documents_total": 0, "documents_done": 0, "error": None}
+index_task: Optional[asyncio.Task] = None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize and cleanup resources."""
@@ -37,7 +67,7 @@ async def lifespan(app: FastAPI):
     # Configuration from environment
     docs_repo_url = os.getenv("DOCS_REPO_URL", "https://github.com/devtron-labs/devtron-documentation")
     docs_path = os.getenv("DOCS_PATH", "./docs")
-    embedding_model = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
+    embedding_model = EMBEDDING_MODEL
     chunk_size = int(os.getenv("CHUNK_SIZE", "1000"))
     chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "0"))
 
@@ -70,20 +100,25 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Vector store initialized successfully")
 
-    # Check if database needs indexing
-    if vector_store.needs_indexing():
-        logger.info("⚠️  Database is empty - call POST /docs/index to index documentation")
+    # An index that is missing or built for another model is rebuilt in the background.
+    problem = vector_store.schema_problem()
+    if problem:
+        logger.warning(f"Index does not fit embedding model {embedding_model} ({problem}); starting a rebuild")
+        _start_index(IndexMode.REBUILD)
+    elif vector_store.needs_indexing():
+        logger.info(f"Index is empty; starting a rebuild with embedding model {embedding_model}")
+        _start_index(IndexMode.REBUILD)
     else:
         conn = vector_store.pool.getconn()
         try:
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM documents;")
                 doc_count = cur.fetchone()[0]
-                logger.info(f"✓ Ready to serve queries ({doc_count} chunks indexed)")
+                logger.info(f"Ready to serve queries ({doc_count} chunks indexed)")
         finally:
             vector_store.pool.putconn(conn)
 
-    logger.info("✓ Server startup complete")
+    logger.info("Server startup complete")
 
     yield
 
@@ -131,21 +166,21 @@ class SearchResponse(BaseModel):
     total_results: int
 
 
-class IndexRequest(BaseModel):
-    force: bool = Field(False, description="Force full re-index even if documents already exist")
-
-
-class IndexResponse(BaseModel):
-    status: str
-    message: str
-    documents_indexed: int
-    total_chunks: int
+class IndexStatus(BaseModel):
+    state: IndexState
+    mode: Optional[IndexMode]
+    started_at: Optional[str]
+    finished_at: Optional[str]
+    documents_total: int
+    documents_done: int
+    error: Optional[str]
 
 
 class HealthResponse(BaseModel):
-    status: str
-    database: str
+    status: ServiceStatus
+    database: DatabaseStatus
     docs_indexed: bool
+    indexing: IndexState
 
 
 # API Endpoints
@@ -155,103 +190,78 @@ async def health_check():
     try:
         needs_indexing = vector_store.needs_indexing()
         return HealthResponse(
-            status="healthy",
-            database="connected",
-            docs_indexed=not needs_indexing
+            status=ServiceStatus.HEALTHY,
+            database=DatabaseStatus.CONNECTED,
+            docs_indexed=not needs_indexing,
+            indexing=index_job["state"]
         )
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
 
 
-@app.post("/index", response_model=IndexResponse)
-async def index_documentation(request: IndexRequest):
-    """
-    Index documentation from GitHub into the vector database.
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-    This endpoint:
-    1. Syncs the latest documentation from GitHub
-    2. Processes all markdown files
-    3. Generates embeddings
-    4. Stores vectors in PostgreSQL with pgvector
 
-    If documents already exist and force=false, it will skip indexing.
-    If force=true, it will clear existing data and re-index everything.
-    """
+async def _run_index(mode: IndexMode) -> None:
+    """Sync the docs and index them: everything for a rebuild, only what changed for an update."""
     try:
-        # Check if already indexed
-        if not request.force and not vector_store.needs_indexing():
-            logger.info("Documentation already indexed. Use force=true to re-index.")
-            # Get current count
-            conn = vector_store.pool.getconn()
-            try:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT COUNT(*) FROM documents;")
-                    doc_count = cur.fetchone()[0]
-                    cur.execute("SELECT COUNT(DISTINCT source) FROM documents;")
-                    source_count = cur.fetchone()[0]
-            finally:
-                vector_store.pool.putconn(conn)
-
-            return IndexResponse(
-                status="skipped",
-                message=f"Documentation already indexed ({source_count} documents, {doc_count} chunks). Use force=true to re-index.",
-                documents_indexed=source_count,
-                total_chunks=doc_count
-            )
-
-        # If force=true, reset the database
-        if request.force and not vector_store.needs_indexing():
-            logger.info("Force re-index requested. Clearing existing data...")
-            vector_store.reset()
-            logger.info("✓ Existing data cleared")
-
-        logger.info("Starting documentation indexing...")
-
-        # Sync docs from GitHub
-        logger.info("Syncing documentation from GitHub...")
-        changed_files = await doc_processor.sync_docs()
-        logger.info(f"✓ Synced documentation: {len(changed_files)} files")
-
-        # Get all documents
-        logger.info("Processing documentation files...")
+        await doc_processor.sync_docs()
         documents = await doc_processor.get_all_documents()
-        logger.info(f"✓ Found {len(documents)} documents to process")
+        if mode is IndexMode.REBUILD:
+            vector_store.rebuild_schema()
+            pending = documents
+        else:
+            indexed = vector_store.indexed_hashes()
+            on_disk = {doc["source"] for doc in documents}
+            vector_store.delete_sources([source for source in indexed if source not in on_disk])
+            pending = [doc for doc in documents if indexed.get(doc["source"]) != doc["content_hash"]]
 
-        if not documents:
-            logger.warning("No documents found to index")
-            return IndexResponse(
-                status="error",
-                message="No documents found in repository",
-                documents_indexed=0,
-                total_chunks=0
-            )
-
-        # Index documents (this will chunk them and create embeddings)
-        logger.info("Generating embeddings and indexing into database...")
-        await vector_store.index_documents(documents)
-
-        # Get final counts
-        conn = vector_store.pool.getconn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM documents;")
-                total_chunks = cur.fetchone()[0]
-        finally:
-            vector_store.pool.putconn(conn)
-
-        logger.info(f"✓ Indexing complete: {len(documents)} documents, {total_chunks} chunks")
-
-        return IndexResponse(
-            status="success",
-            message=f"Successfully indexed {len(documents)} documents into {total_chunks} chunks",
-            documents_indexed=len(documents),
-            total_chunks=total_chunks
-        )
-
+        index_job["documents_total"] = len(pending)
+        logger.info(f"Index {mode.value}: {len(pending)} of {len(documents)} documents to embed")
+        await vector_store.index_documents(
+            pending, on_progress=lambda done: index_job.update(documents_done=done))
+        index_job.update(state=IndexState.DONE, finished_at=_now())
+        logger.info(f"Index {mode.value} complete: {len(pending)} documents embedded")
     except Exception as e:
-        logger.error(f"Indexing failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}")
+        logger.error(f"Index {mode.value} failed: {e}", exc_info=True)
+        index_job.update(state=IndexState.FAILED, finished_at=_now(), error=str(e))
+
+
+def _start_index(mode: IndexMode) -> IndexStatus:
+    """Start an indexing job in the background, refusing a second one."""
+    global index_task
+    if index_job["state"] is IndexState.RUNNING:
+        raise HTTPException(status_code=409, detail=f"An index {index_job['mode'].value} is already running.")
+    if mode is IndexMode.UPDATE:
+        problem = vector_store.schema_problem()
+        if problem:
+            raise HTTPException(status_code=409,
+                                detail=f"Index does not fit the embedding model ({problem}). Call /index/rebuild.")
+    index_job.update(state=IndexState.RUNNING, mode=mode, started_at=_now(), finished_at=None,
+                     documents_total=0, documents_done=0, error=None)
+    index_task = asyncio.create_task(_run_index(mode))
+    logger.info(f"Index {mode.value} started in the background")
+    return IndexStatus(**index_job)
+
+
+@app.post("/index/rebuild", response_model=IndexStatus, status_code=202)
+async def rebuild_index():
+    """Delete every indexed chunk and index all documentation again, in the background."""
+    return _start_index(IndexMode.REBUILD)
+
+
+@app.post("/index/update", response_model=IndexStatus, status_code=202)
+async def update_index():
+    """Index only new and changed documents and drop removed ones, in the background."""
+    return _start_index(IndexMode.UPDATE)
+
+
+@app.get("/index/status", response_model=IndexStatus)
+async def index_status():
+    """Progress of the current or last indexing job."""
+    return IndexStatus(**index_job)
 
 
 @app.post("/search", response_model=SearchResponse)
@@ -268,7 +278,7 @@ async def search_documentation(request: SearchRequest):
         if vector_store.needs_indexing():
             raise HTTPException(
                 status_code=400,
-                detail="Documentation not indexed. Please call /index first."
+                detail="Documentation not indexed. Please call /index/rebuild first."
             )
 
         # Perform vector search

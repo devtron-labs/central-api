@@ -106,11 +106,11 @@ def rollback_migration(version: str):
                 (version,)
             )
         
-        logger.info(f"✓ Migration {version} rolled back successfully")
+        logger.info(f"Migration {version} rolled back successfully")
         return True
         
     except Exception as e:
-        logger.error(f"✗ Rollback failed: {e}")
+        logger.error(f"Rollback failed: {e}")
         logger.error(f"   Error details: {str(e)}")
         return False
     finally:

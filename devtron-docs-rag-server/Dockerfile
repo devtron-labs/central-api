@@ -40,11 +40,13 @@ RUN pip install --user --no-cache-dir -r requirements.txt && \
     find /root/.local -type f -name "*.md" -delete 2>/dev/null || true && \
     find /root/.local -name "*.dist-info" -type d -exec sh -c 'rm -rf {}/RECORD {}/INSTALLER {}/direct_url.json' \; 2>/dev/null || true
 
-# Pre-download embedding model to cache it in the image
-# This prevents downloading ~1.34GB on every container startup
-COPY download_model.py .
-RUN python download_model.py BAAI/bge-large-en-v1.5 && \
-    rm download_model.py && \
+# Pre-download the embedding model named in settings.py, so no container downloads it at startup.
+# Build with --build-arg EMBEDDING_MODEL=<name> to bake a different one.
+ARG EMBEDDING_MODEL
+ENV EMBEDDING_MODEL=${EMBEDDING_MODEL}
+COPY settings.py download_model.py ./
+RUN python download_model.py && \
+    rm download_model.py settings.py && \
     echo "Verifying model cache..." && \
     ls -lah /root/.cache/torch/sentence_transformers/ && \
     echo "Model cache verified!"
@@ -79,13 +81,16 @@ ENV PATH=/root/.local/bin:$PATH
 WORKDIR /app
 
 # Copy application code (only necessary files)
-COPY api.py doc_processor.py vector_store.py ./
+COPY api.py doc_processor.py vector_store.py settings.py ./
 
 # Create necessary directories
 RUN mkdir -p /data/devtron-docs
 
 # Environment variables
-ENV PYTHONUNBUFFERED=1 \
+# The model baked above is the only one available offline, so the server must use the same name.
+ARG EMBEDDING_MODEL
+ENV EMBEDDING_MODEL=${EMBEDDING_MODEL} \
+    PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TRANSFORMERS_CACHE=/root/.cache/huggingface \
     HF_HOME=/root/.cache/huggingface \

@@ -1,11 +1,11 @@
 # Devtron Documentation API
 
-A REST API service that provides semantic search over Devtron documentation using local embeddings (BAAI/bge-large-en-v1.5) and PostgreSQL pgvector.
+A REST API service that provides semantic search over Devtron documentation using local embeddings (BAAI/bge-small-en-v1.5) and PostgreSQL pgvector.
 
 ## Features
 
 - 🔍 **Semantic Search**: Find relevant documentation using natural language queries
-- 🤖 **Local Embeddings**: Uses BAAI/bge-large-en-v1.5 model (no AWS dependency for embeddings)
+- 🤖 **Local Embeddings**: Uses BAAI/bge-small-en-v1.5 model (no AWS dependency for embeddings)
 - 📝 **Smart Chunking**: MarkdownTextSplitter for optimal document chunking
 - 🔄 **Auto-Sync**: Automatically syncs with GitHub documentation repository
 - 🗄️ **PostgreSQL + pgvector**: Production-ready vector database
@@ -43,15 +43,15 @@ A REST API service that provides semantic search over Devtron documentation usin
          ▼
 ┌──────────────────────────┐      ┌──────────────────┐
 │ Local Embeddings         │◄─────┤  Vector Store    │
-│ BAAI/bge-large-en-v1.5   │      │  (PostgreSQL +   │
-│ (1024 dimensions)        │      │   pgvector)      │
+│ BAAI/bge-small-en-v1.5   │      │  (PostgreSQL +   │
+│ (384 dimensions)         │      │   pgvector)      │
 └──────────────────────────┘      └────────┬─────────┘
                                            │
                                            ▼
                                   ┌────────────────────┐
                                   │   FastAPI Server   │
                                   │   - /search        │
-                                  │   - /reindex       │
+                                  │   - /index/*       │
                                   │   - /health        │
                                   └────────┬───────────┘
                                            │
@@ -174,14 +174,10 @@ curl http://localhost:8000/health
 #### 2. Re-index Documentation
 ```bash
 # Incremental update (only changed files)
-curl -X POST http://localhost:8000/reindex \
-  -H "Content-Type: application/json" \
-  -d '{"force": false}'
+curl -X POST http://localhost:8000/index/update
 
 # Force full re-index
-curl -X POST http://localhost:8000/reindex \
-  -H "Content-Type: application/json" \
-  -d '{"force": true}'
+curl -X POST http://localhost:8000/index/rebuild
 ```
 
 #### 3. Search Documentation

@@ -32,7 +32,7 @@ AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 
 # Optional - customize
-EMBEDDING_MODEL=BAAI/bge-large-en-v1.5
+EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
 CHUNK_SIZE=1000
 LOG_LEVEL=INFO
 ```
@@ -66,9 +66,7 @@ Expected response:
 ### 5. Index Documentation
 
 ```bash
-curl -X POST http://localhost:8000/reindex \
-  -H "Content-Type: application/json" \
-  -d '{"force": true}'
+curl -X POST http://localhost:8000/index/rebuild
 ```
 
 This will:
@@ -122,7 +120,7 @@ Set up a cron job for incremental updates:
 
 ```bash
 # Add to crontab (runs daily at 2 AM)
-0 2 * * * curl -X POST http://localhost:8000/reindex -H "Content-Type: application/json" -d '{"force": false}'
+0 2 * * * curl -X POST http://localhost:8000/index/update
 ```
 
 ### Integration with Chatbot
@@ -173,9 +171,9 @@ app.start(port=3000)
 ## Troubleshooting
 
 ### Issue: "Documentation not indexed"
-**Solution:** Run the reindex endpoint first:
+**Solution:** Run the rebuild endpoint first:
 ```bash
-curl -X POST http://localhost:8000/reindex -H "Content-Type: application/json" -d '{"force": true}'
+curl -X POST http://localhost:8000/index/rebuild
 ```
 
 ### Issue: Database connection failed
@@ -199,7 +197,7 @@ docker-compose logs postgres
 
 ## Performance Tips
 
-1. **Use incremental updates**: Set `"force": false` for daily syncs
+1. **Use incremental updates**: Call `/index/update` for daily syncs
 2. **Limit results**: Use `max_results: 3-5` for best performance
 3. **Cache responses**: Implement caching layer for common queries
 4. **Disable LLM**: Use `"use_llm": false` when speed is critical

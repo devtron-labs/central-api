@@ -54,7 +54,7 @@ class DocumentationProcessor:
         try:
             if not self.local_path.exists():
                 logger.info(f"Cloning repository from {self.repo_url}...")
-                self.repo = Repo.clone_from(self.repo_url, self.local_path)
+                self.repo = Repo.clone_from(self.repo_url, self.local_path, depth=1)
                 logger.info("Repository cloned successfully")
                 # All files are new
                 changed_files = self._get_all_markdown_files()
@@ -216,6 +216,7 @@ class DocumentationProcessor:
                 "title": title,
                 "content": content,
                 "source": file_path,
+                "content_hash": hashlib.md5(content.encode()).hexdigest(),
                 "chunks": chunks
             }
 

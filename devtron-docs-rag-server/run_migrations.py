@@ -95,10 +95,10 @@ def run_migration(conn, migration_file: Path):
         with conn.cursor() as cur:
             cur.execute(sql)
 
-        logger.info(f"✓ Migration {migration_file.name} completed successfully")
+        logger.info(f"Migration {migration_file.name} completed successfully")
         return True
     except Exception as e:
-        logger.error(f"✗ Migration {migration_file.name} failed: {e}")
+        logger.error(f"Migration {migration_file.name} failed: {e}")
         logger.error(f"   Error details: {str(e)}")
         return False
 
@@ -153,9 +153,9 @@ def run_migrations():
                 return False
 
         if pending_count == 0:
-            logger.info("✓ All migrations are up to date")
+            logger.info("All migrations are up to date")
         else:
-            logger.info(f"✓ Successfully applied {pending_count} migration(s)")
+            logger.info(f"Successfully applied {pending_count} migration(s)")
 
         return True
 

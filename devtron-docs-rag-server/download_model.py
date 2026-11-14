@@ -9,13 +9,15 @@ import os
 import sys
 from sentence_transformers import SentenceTransformer
 
+from settings import EMBEDDING_MODEL
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-def download_model(model_name: str = "BAAI/bge-large-en-v1.5"):
+def download_model(model_name: str = EMBEDDING_MODEL):
     """Download and cache the embedding model."""
 
     # Verify cache directories are set
@@ -29,7 +31,7 @@ def download_model(model_name: str = "BAAI/bge-large-en-v1.5"):
         model = SentenceTransformer(model_name)
         dimension = model.get_sentence_embedding_dimension()
 
-        logger.info(f"✓ Model downloaded successfully!")
+        logger.info(f"Model downloaded successfully!")
         logger.info(f"  Model: {model_name}")
         logger.info(f"  Embedding dimension: {dimension}")
         logger.info(f"  Cache location: {cache_dir}")
@@ -43,13 +45,12 @@ def download_model(model_name: str = "BAAI/bge-large-en-v1.5"):
 
         return True
     except Exception as e:
-        logger.error(f"✗ Failed to download model: {str(e)}")
+        logger.error(f"Failed to download model: {str(e)}")
         import traceback
         traceback.print_exc()
         return False
 
 if __name__ == "__main__":
-    model_name = sys.argv[1] if len(sys.argv) > 1 else "BAAI/bge-large-en-v1.5"
-    success = download_model(model_name)
+    success = download_model()
     sys.exit(0 if success else 1)
 
